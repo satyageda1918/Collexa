@@ -40,6 +40,8 @@ class StudentBase(BaseModel):
     department: str
     year: int
     section: str
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
     gpa: float = 0.0
 
 class Student(StudentBase):
@@ -47,13 +49,30 @@ class Student(StudentBase):
     class Config:
         from_attributes = True
 
+class StudentUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
+
+class StudentWithAttendance(User):
+    attendance_percentage: float = 0.0
+
 class TeacherBase(BaseModel):
     department: str
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
 
 class Teacher(TeacherBase):
     user_id: int
     class Config:
         from_attributes = True
+
+class TeacherUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
 
 class AttendanceBase(BaseModel):
     student_id: int
@@ -91,8 +110,9 @@ class Fee(FeeBase):
         from_attributes = True
 
 class LeaveRequestBase(BaseModel):
-    student_id: int
     reason: str
+    start_date: date
+    end_date: date
 
 class LeaveRequest(LeaveRequestBase):
     id: int
@@ -102,12 +122,44 @@ class LeaveRequest(LeaveRequestBase):
         from_attributes = True
 
 class FeedbackBase(BaseModel):
-    student_id: int
     teacher_id: int
     rating: int
     comment: str
 
 class Feedback(FeedbackBase):
     id: int
+    student_id: int
     class Config:
         from_attributes = True
+
+class NotificationBase(BaseModel):
+    title: str
+    message: str
+
+class Notification(NotificationBase):
+    id: int
+    is_read: bool
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class AdmissionRequestBase(BaseModel):
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone_number: str
+    desired_course: str
+    previous_gpa: float
+
+class AdmissionRequestCreate(AdmissionRequestBase):
+    pass
+
+class AdmissionRequest(AdmissionRequestBase):
+    id: int
+    status: str
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class LeaveRequestUpdate(BaseModel):
+    status: str

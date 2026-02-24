@@ -1,9 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
 import models, schemas, auth, database, dependencies
+import json
 from database import engine, get_db
 from routers import student, teacher, admin, office, ai
 
@@ -23,6 +24,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from websocket_manager import manager
+
+# We attach it to app state so routers can access it
+app.state.ws_manager = manager
+
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: int):
+    await manager.connect(websocket, user_id)
+    try:
+        while True:
+            # We simply keep the connection alive. Client can send pings.
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(user_id)
 
 @app.post("/token", response_model=schemas.Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):

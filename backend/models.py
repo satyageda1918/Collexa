@@ -10,6 +10,18 @@ class UserRole(enum.Enum):
     ADMIN = "ADMIN"
     OFFICE = "OFFICE"
 
+class AdmissionRequest(Base):
+    __tablename__ = "admission_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    first_name = Column(String(50))
+    last_name = Column(String(50))
+    email = Column(String(100), unique=True, index=True)
+    phone_number = Column(String(20))
+    desired_course = Column(String(100))
+    previous_gpa = Column(Float)
+    status = Column(String(20), default="Pending") # Pending, Approved, Rejected
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -28,6 +40,8 @@ class Student(Base):
     department = Column(String(100))
     year = Column(Integer)
     section = Column(String(10))
+    phone_number = Column(String(20))
+    address = Column(Text)
     gpa = Column(Float, default=0.0)
 
     user = relationship("User", back_populates="student_profile")
@@ -41,6 +55,8 @@ class Teacher(Base):
     __tablename__ = "teachers"
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     department = Column(String(100))
+    phone_number = Column(String(20))
+    address = Column(Text)
 
     user = relationship("User", back_populates="teacher_profile")
     feedback = relationship("Feedback", back_populates="teacher")
@@ -93,6 +109,8 @@ class LeaveRequest(Base):
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("students.user_id"))
     reason = Column(Text)
+    start_date = Column(Date)
+    end_date = Column(Date)
     status = Column(String(20), default="Pending") # Pending/Approved/Rejected
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -108,3 +126,17 @@ class Feedback(Base):
 
     student = relationship("Student", back_populates="feedback")
     teacher = relationship("Teacher", back_populates="feedback")
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.user_id"))
+    title = Column(String(200))
+    message = Column(Text)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    student = relationship("Student", back_populates="notifications")
+
+# Update Student relationship
+Student.notifications = relationship("Notification", back_populates="student")

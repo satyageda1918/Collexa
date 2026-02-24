@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import {
     Users,
@@ -12,8 +13,10 @@ import {
 } from 'lucide-react';
 
 const AdminDashboard = () => {
+    const { user } = useAuth();
     const [users, setUsers] = useState([]);
     const [leaves, setLeaves] = useState([]);
+    const [stats, setStats] = useState({ total_students: 0, total_faculty: 0, system_status: 'Checking...', active_sessions: 0 });
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -29,12 +32,14 @@ const AdminDashboard = () => {
 
     const refreshData = async () => {
         try {
-            const [usersRes, leavesRes] = await Promise.all([
+            const [usersRes, leavesRes, statsRes] = await Promise.all([
                 api.get('/admin/users'),
-                api.get('/admin/leave-requests')
+                api.get('/admin/leave-requests'),
+                api.get('/admin/dashboard-stats')
             ]);
             setUsers(usersRes.data);
             setLeaves(leavesRes.data);
+            setStats(statsRes.data);
         } catch (err) {
             console.error(err);
         }
@@ -42,7 +47,24 @@ const AdminDashboard = () => {
 
     useEffect(() => {
         refreshData();
-    }, []);
+
+        // Establish Real-Time WebSocket Connection
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//localhost:8000/ws/${user?.id || 1}`;
+        const socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => console.log('Admin WS Connected');
+        socket.onmessage = (event) => {
+            const msg = event.data;
+            if (['USERS_UPDATED', 'LEAVES_UPDATED', 'FEES_UPDATED', 'ADMISSIONS_UPDATED'].includes(msg)) {
+                console.log('Real-time update received:', msg);
+                refreshData(); // Instantly refresh data on event
+            }
+        };
+        socket.onclose = () => console.log('Admin WS Disconnected');
+
+        return () => socket.close();
+    }, [user?.id]);
 
     const handleUserSubmit = async (e) => {
         e.preventDefault();
@@ -104,19 +126,19 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-brand-card p-6 rounded-2xl border border-slate-200 shadow-sm">
                     <p className="text-slate-500 text-sm">Total Students</p>
-                    <p className="text-3xl font-bold mt-2 text-brand-text">1,240</p>
+                    <p className="text-3xl font-bold mt-2 text-brand-text">{stats.total_students}</p>
                 </div>
                 <div className="bg-brand-card p-6 rounded-2xl border border-slate-200 shadow-sm">
                     <p className="text-slate-500 text-sm">Total Faculty</p>
-                    <p className="text-3xl font-bold mt-2 text-brand-text">86</p>
+                    <p className="text-3xl font-bold mt-2 text-brand-text">{stats.total_faculty}</p>
                 </div>
                 <div className="bg-brand-card p-6 rounded-2xl border border-slate-200 shadow-sm">
                     <p className="text-slate-500 text-sm">System Status</p>
-                    <p className="text-xl font-bold mt-2 text-emerald-600">All Systems Go</p>
+                    <p className={`text-xl font-bold mt-2 ${stats.system_status.includes('Go') ? 'text-emerald-600' : 'text-amber-500'}`}>{stats.system_status}</p>
                 </div>
                 <div className="bg-brand-card p-6 rounded-2xl border border-slate-200 shadow-sm">
                     <p className="text-slate-500 text-sm">Active Sessions</p>
-                    <p className="text-3xl font-bold mt-2 text-brand-text">12</p>
+                    <p className="text-3xl font-bold mt-2 text-brand-text">{stats.active_sessions}</p>
                 </div>
             </div>
 

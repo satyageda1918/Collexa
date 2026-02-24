@@ -28,24 +28,15 @@ const MainLayout = () => {
         STUDENT: [
             { name: 'Dashboard', path: '/student', icon: LayoutDashboard },
             { name: 'Scan Attendance', path: '/student/scan', icon: QrCode },
-            { name: 'Marks & Reports', path: '/student/marks', icon: FileText },
-            { name: 'Fees & Payments', path: '/student/fees', icon: CreditCard },
-            { name: 'Leave Requests', path: '/student/leave', icon: ClipboardList },
-            { name: 'Faculty Feedback', path: '/student/feedback', icon: MessageSquare },
         ],
         TEACHER: [
             { name: 'Dashboard', path: '/teacher', icon: LayoutDashboard },
-            { name: 'Generate QR', path: '/teacher/qr', icon: QrCode },
-            { name: 'Leave Requests', path: '/teacher/leave', icon: ClipboardList },
         ],
         ADMIN: [
             { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
-            { name: 'User Management', path: '/admin/users', icon: User },
-            { name: 'Leave Approvals', path: '/admin/leaves', icon: ClipboardList },
         ],
         OFFICE: [
             { name: 'Dashboard', path: '/office', icon: LayoutDashboard },
-            { name: 'Fee Records', path: '/office/fees', icon: CreditCard },
         ],
     };
 
@@ -64,11 +55,11 @@ const MainLayout = () => {
                 <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
                     {currentMenu.map((item) => (
                         <Link
-                            key={item.path}
+                            key={item.name}
                             to={item.path}
                             className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${location.pathname === item.path
-                                    ? 'bg-brand-primary text-white'
-                                    : 'text-indigo-100 hover:bg-brand-hover hover:text-white'
+                                ? 'bg-brand-primary text-white'
+                                : 'text-indigo-100 hover:bg-brand-hover hover:text-white'
                                 }`}
                         >
                             <item.icon className="mr-3 h-5 w-5" />
