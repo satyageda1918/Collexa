@@ -17,12 +17,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
+            print("JWT Error: 'sub' (email) is missing in payload")
             raise credentials_exception
         token_data = schemas.TokenData(email=email)
-    except JWTError:
+    except JWTError as e:
+        print(f"JWT Error during decode: {str(e)}")
         raise credentials_exception
     user = db.query(models.User).filter(models.User.email == token_data.email).first()
     if user is None:
+        print(f"Auth Error: User with email {token_data.email} not found in database")
         raise credentials_exception
     return user
 

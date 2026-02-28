@@ -1,52 +1,61 @@
-# AI-Powered College ERP System
+# COLLEXA - AI-Powered College ERP System
 
-A production-ready ERP system for colleges with distinct portals for Students, Teachers, Admins, and Office Staff.
+A production-ready ERP system for modern colleges with granular, department-specific portals.
 
 ## Tech Stack
 
 - **Backend**: FastAPI, SQLAlchemy, MySQL, JWT, Bcrypt, Pydantic
-- **Frontend**: React.js, Tailwind CSS, Axios
+- **Frontend**: React.js, Tailwind CSS, Lucide Icons, Axios
 - **AI Module**: Scikit-learn (RandomForestClassifier), Pandas, Joblib
 
 ## Features
 
-### Portals
-- **Student Portal**: QR attendance scan, fee payment/history, report cards, faculty feedback, performance prediction.
-- **Teacher Portal**: QR code generation for attendance, session planning, leave requests, risk analytics.
-- **Admin Portal**: User management, leave request approval, department/subject setup.
-- **Office Portal**: Fee management, payment recording, financial analytics.
+### Departmental Portals
+- **Student Dashboard**: QR attendance scan, fee history, mark sheets, faculty feedback.
+- **Faculty Portal**: QR code generation, enrollment management, profile tracking.
+- **Super Admin**: Full directory management, system stats, access to all departmental modules.
+- **Admission Desk**: Application review, student account auto-seeding.
+- **Exam & Admin Cell**: Results publication, Question Paper generation, Academic protocol control.
+- **Account Section**: Fee processing, revenue ledgers, payment recording.
 
-### AI Student Performance Prediction
+### AI Risk Analytics
 - Predicts student risk level (Low, Medium, High) based on attendance, marks, and GPA.
-- Uses a RandomForestClassifier model.
+- Real-time performance insights for teachers and administrators.
+
+## Project Structure
+
+- `backend/`: FastAPI application, SQL database models, and AI logic.
+- `frontend/`: React single-page application with a premium dark/glassmorphism UI.
 
 ## Setup Instructions
 
-### Prerequisites
-- Python 3.9+
-- MySQL Server
-- Docker & Docker Compose (optional but recommended)
-
 ### Local Backend Setup
 1. Navigate to `backend/`
-2. Create a virtual environment: `python -m venv venv`
-3. Activate it: `source venv/bin/activate` (Linux/Mac) or `venv\Scripts\activate` (Windows)
+2. Create a virtual environment: `python -m venv myenv`
+3. Activate it: `myenv\Scripts\activate` (Windows)
 4. Install dependencies: `pip install -r requirements.txt`
 5. Configure `.env` with your DB credentials.
-6. Run seed script: `python seed_data.py`
-7. Run the server: `uvicorn main:app --reload`
+6. Run the server: `uvicorn main:app --reload`
 
-## Portal Credentials (Default)
+### Frontend Setup
+1. Navigate to `frontend/`
+2. Install dependencies: `npm install`
+3. Start the dev server: `npm run dev`
 
-| Role | Email | Password |
+## Default Access Credentials
+
+| Department | Email | Password |
 | --- | --- | --- |
-| Admin | admin@college.com | Admin@123 |
+| Super Admin | admin@college.com | Admin@123 |
 | Student | student@college.com | Student@123 |
 | Teacher | teacher@college.com | Teacher@123 |
-| Office | office@college.com | Office@123 |
+| Admission Desk | admission@college.com | Admission@123 |
+| Exam Cell | exam@college.com | Exam@123 |
+| Account Section | account@college.com | Account@123 |
 
-## API Endpoints
-- `POST /token`: Login to get JWT.
-- `GET /users/me`: Get current user profile.
-- `POST /ai/predict`: Performance prediction.
-- `...`: Portal specific endpoints under `/student`, `/teacher`, `/admin`, `/office`.
+## API Layer
+- `POST /token`: Unified authentication.
+- `GET /staff/...`: Departmental endpoints (Admission, Exam, Accounts).
+- `GET /student/...`: Student specific logic.
+- `GET /teacher/...`: Faculty specific logic.
+- `GET /admin/...`: Administrative control.

@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime, date
+from decimal import Decimal
 from models import UserRole
 
 class UserBase(BaseModel):
@@ -32,6 +33,7 @@ class UserUpdate(BaseModel):
 class User(UserBase):
     id: int
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -43,6 +45,7 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
     role: Optional[str] = None
+    id: Optional[int] = None
 
 class StudentBase(BaseModel):
     department: str
@@ -82,9 +85,36 @@ class TeacherUpdate(BaseModel):
     phone_number: Optional[str] = None
     address: Optional[str] = None
 
+class AdmissionStaffBase(BaseModel):
+    access_level: str = "Standard"
+
+class AdmissionStaff(AdmissionStaffBase):
+    user_id: int
+    class Config:
+        from_attributes = True
+
+class ExamStaffBase(BaseModel):
+    examination_zone: str = "Main Campus"
+
+class ExamStaff(ExamStaffBase):
+    user_id: int
+    class Config:
+        from_attributes = True
+
+class AccountStaffBase(BaseModel):
+    ledger_access: bool = True
+
+class AccountStaff(AccountStaffBase):
+    user_id: int
+    class Config:
+        from_attributes = True
+
 class UserDetailed(User):
     student_profile: Optional[Student] = None
     teacher_profile: Optional[Teacher] = None
+    admission_profile: Optional[AdmissionStaff] = None
+    exam_profile: Optional[ExamStaff] = None
+    account_profile: Optional[AccountStaff] = None
     class Config:
         from_attributes = True
 
@@ -102,38 +132,55 @@ class Attendance(AttendanceBase):
 
 class MarkBase(BaseModel):
     student_id: int
-    subject_id: int
+    academic_year: str
     semester: int
-    internal_marks: float
-    external_marks: float
+    subject_code: str
+    subject_name: str
+    exam_type: str
+    department: str
+    section: str
+    internal_marks: float = 0.0
+    external_marks: float = 0.0
+    status: str = "Pending"
 
 class Mark(MarkBase):
     id: int
     class Config:
         from_attributes = True
 
+class MarkCreate(BaseModel):
+    student_id: int
+    academic_year: str
+    semester: int
+    subject_code: str
+    subject_name: str
+    exam_type: str
+    department: str
+    section: str
+    internal_marks: float
+    external_marks: float
+
 class FeeBase(BaseModel):
     student_id: int
-    total_amount: float
-    paid_amount: float
-    due_amount: float
+    total_amount: Decimal
+    paid_amount: Decimal
+    due_amount: Decimal
 
 class Fee(FeeBase):
     id: int
     class Config:
         from_attributes = True
 
-class LeaveRequestBase(BaseModel):
-    reason: str
-    start_date: date
-    end_date: date
+class FeePaymentBase(BaseModel):
+    fee_id: int
+    amount: Decimal
+    payment_date: Optional[datetime] = None
 
-class LeaveRequest(LeaveRequestBase):
+class FeePayment(FeePaymentBase):
     id: int
-    status: str
-    created_at: Optional[datetime] = None
     class Config:
         from_attributes = True
+
 
 class FeedbackBase(BaseModel):
     teacher_id: int
@@ -172,8 +219,40 @@ class AdmissionRequest(AdmissionRequestBase):
     id: int
     status: str
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     class Config:
         from_attributes = True
 
-class LeaveRequestUpdate(BaseModel):
-    status: str
+
+class SystemConfig(BaseModel):
+    mark_entry_enabled: bool
+    results_published: bool
+    class Config:
+        from_attributes = True
+
+class QuestionEntry(BaseModel):
+    category: str  # 2-mark, 5-mark, etc
+    question: str
+
+class QuestionPaperBase(BaseModel):
+    subject_code: str
+    subject_name: str
+    faculty_name: str
+    semester: int
+    questions_data: str  # Stringified JSON for now
+    file_url: Optional[str] = None
+    exam_type: str = "Regular"
+
+class QuestionPaperCreate(QuestionPaperBase):
+    pass
+
+class QuestionPaper(QuestionPaperBase):
+    id: int
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class MarkUpdate(BaseModel):
+    internal_marks: Optional[float] = None
+    external_marks: Optional[float] = None
+    status: Optional[str] = None

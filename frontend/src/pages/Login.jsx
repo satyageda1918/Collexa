@@ -32,7 +32,9 @@ const Login = () => {
             if (role === 'ADMIN') navigate('/admin');
             else if (role === 'STUDENT') navigate('/student');
             else if (role === 'TEACHER') navigate('/teacher');
-            else if (role === 'OFFICE') navigate('/office');
+            else if (role === 'ADMISSION') navigate('/admission');
+            else if (role === 'EXAM') navigate('/exam-cell');
+            else if (role === 'ACCOUNT') navigate('/account-section');
             else navigate('/');
 
         } catch (err) {

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from decimal import Decimal
 import datetime
 import models, schemas, database, dependencies
 from websocket_manager import manager
@@ -77,7 +78,10 @@ async def get_marks(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(dependencies.RoleChecker(["STUDENT"]))
 ):
-    return db.query(models.Mark).filter(models.Mark.student_id == current_user.id).all()
+    return db.query(models.Mark).filter(
+        models.Mark.student_id == current_user.id,
+        models.Mark.status == "Published"
+    ).all()
 
 @router.get("/fees", response_model=List[schemas.Fee])
 async def get_fees(
@@ -86,16 +90,10 @@ async def get_fees(
 ):
     return db.query(models.Fee).filter(models.Fee.student_id == current_user.id).all()
 
-@router.get("/leave-requests", response_model=List[schemas.LeaveRequest])
-async def get_leave_requests(
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(dependencies.RoleChecker(["STUDENT"]))
-):
-    return db.query(models.LeaveRequest).filter(models.LeaveRequest.student_id == current_user.id).all()
 
 @router.post("/pay-fee")
 async def pay_fee(
-    amount: float,
+    amount: Decimal,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(dependencies.RoleChecker(["STUDENT"]))
 ):
@@ -119,19 +117,6 @@ async def pay_fee(
     await manager.broadcast("FEES_UPDATED")
     return {"message": f"Payment of {amount} successful", "due_remain": fee.due_amount}
 
-@router.post("/leave-request", response_model=schemas.LeaveRequest)
-async def create_leave_request(
-    leave: schemas.LeaveRequestBase,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(dependencies.RoleChecker(["STUDENT"]))
-):
-    db_leave = models.LeaveRequest(**leave.dict(), student_id=current_user.id)
-    db.add(db_leave)
-    db.commit()
-    db.refresh(db_leave)
-    
-    await manager.broadcast("LEAVES_UPDATED")
-    return db_leave
 
 @router.post("/feedback", response_model=schemas.Feedback)
 async def submit_feedback(

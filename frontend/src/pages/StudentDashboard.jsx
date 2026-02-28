@@ -20,7 +20,9 @@ import {
     MapPin,
     Phone,
     Mail,
-    Save
+    Save,
+    Clock,
+    ShieldCheck
 } from 'lucide-react';
 import {
     Chart as ChartJS,
@@ -53,7 +55,7 @@ const StudentDashboard = () => {
     const [attendance, setAttendance] = useState([]);
     const [marks, setMarks] = useState([]);
     const [fees, setFees] = useState([]);
-    const [leaves, setLeaves] = useState([]);
+    const [config, setConfig] = useState({ results_published: false });
     const [prediction, setPrediction] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -77,13 +79,13 @@ const StudentDashboard = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [profileRes, attendanceRes, marksRes, feesRes, leavesRes, notificationsRes] = await Promise.all([
+            const [profileRes, attendanceRes, marksRes, feesRes, notificationsRes, configRes] = await Promise.all([
                 api.get('/student/profile'),
                 api.get('/student/attendance'),
                 api.get('/student/marks'),
                 api.get('/student/fees'),
-                api.get('/student/leave-requests'),
-                api.get('/student/notifications')
+                api.get('/student/notifications'),
+                api.get('/staff/exam/config')
             ]);
             setProfile(profileRes.data);
             setProfileForm({
@@ -95,8 +97,8 @@ const StudentDashboard = () => {
             setAttendance(attendanceRes.data);
             setMarks(marksRes.data);
             setFees(feesRes.data);
-            setLeaves(leavesRes.data);
             setNotifications(notificationsRes.data);
+            setConfig(configRes.data);
 
             // AI Prediction
             const attnPct = attendanceRes.data.length > 0
@@ -126,13 +128,13 @@ const StudentDashboard = () => {
 
         // Establish Real-Time WebSocket Connection
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//localhost:8000/ws/${user?.id || 1}`;
+        const wsUrl = `${wsProtocol}//localhost:8000/ws/${user?.id || 'guest'}`;
         const socket = new WebSocket(wsUrl);
 
         socket.onopen = () => console.log('Student WS Connected');
         socket.onmessage = (event) => {
             const msg = event.data;
-            if (['FEES_UPDATED', 'ATTENDANCE_UPDATED', 'LEAVES_UPDATED', 'NEW_NOTIFICATION'].includes(msg)) {
+            if (['FEES_UPDATED', 'ATTENDANCE_UPDATED', 'CONFIG_UPDATED', 'NEW_NOTIFICATION'].includes(msg)) {
                 console.log('Real-time update received:', msg);
                 fetchData(); // Instantly refresh data on event
             }
@@ -177,17 +179,6 @@ const StudentDashboard = () => {
         }
     };
 
-    const handleLeaveSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            await api.post('/student/leave-request', leaveRequest);
-            alert("Leave request submitted!");
-            setLeaveRequest({ reason: '', start_date: '', end_date: '' });
-            fetchData();
-        } catch (err) {
-            alert("Error submitting leave request");
-        }
-    };
 
     const handleProfileUpdate = async (e) => {
         e.preventDefault();
@@ -319,7 +310,7 @@ const StudentDashboard = () => {
                                 <ChevronRight className="text-slate-600" />
                             </div>
                             <div className="divide-y divide-slate-800">
-                                {marks.slice(0, 3).map((m, i) => (
+                                {config.results_published ? marks.slice(0, 3).map((m, i) => (
                                     <div key={i} className="p-6 flex items-center hover:bg-slate-800/30 transition-colors">
                                         <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
                                             <ClipboardList size={24} />
@@ -329,18 +320,12 @@ const StudentDashboard = () => {
                                             <p className="text-sm text-slate-500 font-medium">Internal: {m.internal_marks} | External: {m.external_marks}</p>
                                         </div>
                                     </div>
-                                ))}
-                                {leaves.slice(0, 2).map((l, i) => (
-                                    <div key={i} className="p-6 flex items-center hover:bg-slate-800/30 transition-colors">
-                                        <div className="h-12 w-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-400 border border-amber-500/20">
-                                            <Calendar size={24} />
-                                        </div>
-                                        <div className="ml-6">
-                                            <p className="text-base font-bold text-white">Leave Request {l.status}</p>
-                                            <p className="text-sm text-slate-500 font-medium">{l.reason}</p>
-                                        </div>
+                                )) : (
+                                    <div className="p-12 text-center">
+                                        <Clock className="h-8 w-8 text-slate-600 mx-auto mb-4" />
+                                        <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Awaiting Results Release</p>
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </div>
                     </div>
@@ -427,34 +412,43 @@ const StudentDashboard = () => {
                         <h3 className="text-2xl font-black uppercase italic mb-8 flex items-center gap-4">
                             <BookOpen className="text-indigo-500" /> Academic Results
                         </h3>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b border-slate-800">
-                                        <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Semester</th>
-                                        <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Subject ID</th>
-                                        <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Internal</th>
-                                        <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">External</th>
-                                        <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Total</th>
-                                        <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-800/50">
-                                    {marks.map((m, i) => (
-                                        <tr key={i} className="hover:bg-slate-800/20 transition-colors">
-                                            <td className="py-6 font-black text-white">{m.semester}</td>
-                                            <td className="py-6 font-bold text-slate-400">#SUB-00{m.subject_id}</td>
-                                            <td className="py-6 font-bold text-white">{m.internal_marks}</td>
-                                            <td className="py-6 font-bold text-white">{m.external_marks}</td>
-                                            <td className="py-6 font-black text-indigo-400">{m.internal_marks + m.external_marks}</td>
-                                            <td className="py-6">
-                                                <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase px-2 py-1 rounded-md">Pass</span>
-                                            </td>
+                        {config.results_published ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="border-b border-slate-800">
+                                            <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Semester</th>
+                                            <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Subject</th>
+                                            <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Internal</th>
+                                            <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">External</th>
+                                            <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Total</th>
+                                            <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Status</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-800/50">
+                                        {marks.map((m, i) => (
+                                            <tr key={i} className="hover:bg-slate-800/20 transition-colors">
+                                                <td className="py-6 font-black text-white">{m.semester}</td>
+                                                <td className="py-6 font-bold text-white uppercase">{m.subject_code}</td>
+                                                <td className="py-6 font-bold text-white">{m.internal_marks}</td>
+                                                <td className="py-6 font-bold text-white">{m.external_marks}</td>
+                                                <td className="py-6 font-black text-indigo-400">{m.internal_marks + m.external_marks}</td>
+                                                <td className="py-6">
+                                                    <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase px-2 py-1 rounded-md">Pass</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {marks.length === 0 && <p className="p-20 text-center text-slate-500 font-black uppercase">No results found</p>}
+                            </div>
+                        ) : (
+                            <div className="p-40 text-center">
+                                <ShieldCheck className="h-20 w-20 text-indigo-500/20 mx-auto mb-8 animate-pulse" />
+                                <h4 className="text-3xl font-black uppercase italic tracking-tighter text-white">Results are Sealed</h4>
+                                <p className="text-slate-500 font-bold uppercase tracking-widest mt-2">The Exam Cell has not authorized result publication yet.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -562,50 +556,6 @@ const StudentDashboard = () => {
                         </form>
                     </div>
 
-                    {/* Leave Request */}
-                    <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl">
-                        <h3 className="text-2xl font-black uppercase italic mb-8 flex items-center gap-4">
-                            <Calendar className="text-indigo-500" /> APPLY FOR LEAVE
-                        </h3>
-                        <form onSubmit={handleLeaveSubmit} className="space-y-6">
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Reason</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={leaveRequest.reason}
-                                    onChange={(e) => setLeaveRequest({ ...leaveRequest, reason: e.target.value })}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold"
-                                    placeholder="Medical / Personal etc."
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Start Date</label>
-                                    <input
-                                        type="date"
-                                        required
-                                        value={leaveRequest.start_date}
-                                        onChange={(e) => setLeaveRequest({ ...leaveRequest, start_date: e.target.value })}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">End Date</label>
-                                    <input
-                                        type="date"
-                                        required
-                                        value={leaveRequest.end_date}
-                                        onChange={(e) => setLeaveRequest({ ...leaveRequest, end_date: e.target.value })}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold"
-                                    />
-                                </div>
-                            </div>
-                            <button type="submit" className="w-full py-4 bg-amber-600 text-white font-black rounded-2xl hover:bg-amber-500 transition-all uppercase tracking-widest">
-                                Submit Request
-                            </button>
-                        </form>
-                    </div>
                 </div>
             )}
             {activeTab === 'profile' && (

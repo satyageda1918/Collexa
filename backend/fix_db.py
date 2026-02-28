@@ -4,9 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def fix_db():
+def migrate():
     db_url = os.getenv("DATABASE_URL")
-    # mysql+pymysql://root:password@localhost:3306/college_erp
     
     try:
         base_url = db_url.split("://")[1]
@@ -32,50 +31,141 @@ def fix_db():
         )
         
         cursor = connection.cursor()
-        
-        # Check leave_requests columns
-        cursor.execute("DESCRIBE leave_requests")
-        columns = [col[0] for col in cursor.fetchall()]
-        
-        if 'start_date' not in columns:
-            print("Adding 'start_date' to leave_requests...")
-            cursor.execute("ALTER TABLE leave_requests ADD COLUMN start_date DATE AFTER reason")
-        
-        if 'end_date' not in columns:
-            print("Adding 'end_date' to leave_requests...")
-            cursor.execute("ALTER TABLE leave_requests ADD COLUMN end_date DATE AFTER start_date")
-            
-        # Check students columns
-        cursor.execute("DESCRIBE students")
-        columns = [col[0] for col in cursor.fetchall()]
-        
-        if 'phone_number' not in columns:
-            print("Adding 'phone_number' to students...")
-            cursor.execute("ALTER TABLE students ADD COLUMN phone_number VARCHAR(20) AFTER section")
-            
-        if 'address' not in columns:
-            print("Adding 'address' to students...")
-            cursor.execute("ALTER TABLE students ADD COLUMN address TEXT AFTER phone_number")
+        print(f"Connected to database: {db_name}")
 
-        # Check teachers columns
-        cursor.execute("DESCRIBE teachers")
-        columns = [col[0] for col in cursor.fetchall()]
+        def add_column(table, column, definition):
+            cursor.execute(f"DESCRIBE {table}")
+            cols = [col[0] for col in cursor.fetchall()]
+            if column not in cols:
+                print(f"Adding column '{column}' to '{table}'...")
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+        def add_index(table, column):
+            cursor.execute(f"SHOW INDEX FROM {table} WHERE Column_name = '{column}'")
+            if not cursor.fetchall():
+                print(f"Creating index for '{column}' in '{table}'...")
+                cursor.execute(f"CREATE INDEX idx_{table}_{column} ON {table}({column})")
+
+        def modify_column(table, column, definition):
+            print(f"Ensuring '{column}' in '{table}' is {definition}")
+            cursor.execute(f"ALTER TABLE {table} MODIFY COLUMN {column} {definition}")
+
+        # All tables to ensure audit columns
+        all_tables = [
+            "users", "students", "teachers", "admission_staff", "exam_staff", 
+            "account_staff", "attendance", "marks", "fees", "fee_payments", 
+            "feedback", "notifications", "admission_requests"
+        ]
         
-        if 'phone_number' not in columns:
-            print("Adding 'phone_number' to teachers...")
-            cursor.execute("ALTER TABLE teachers ADD COLUMN phone_number VARCHAR(20) AFTER department")
-            
-        if 'address' not in columns:
-            print("Adding 'address' to teachers...")
-            cursor.execute("ALTER TABLE teachers ADD COLUMN address TEXT AFTER phone_number")
+        for table in all_tables:
+            add_column(table, "created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
+            add_column(table, "updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
+
+        # Precision
+        modify_column("fees", "total_amount", "DECIMAL(12, 2)")
+        modify_column("fees", "paid_amount", "DECIMAL(12, 2)")
+        modify_column("fees", "due_amount", "DECIMAL(12, 2)")
+        modify_column("fee_payments", "amount", "DECIMAL(12, 2)")
+
+        # Critical Indexes for Scale
+        add_index("users", "role")
+        add_index("users", "email") # Already unique but just in case
+        
+        # FKs
+        fks = [
+            ("students", "user_id"),
+            ("teachers", "user_id"),
+            ("admission_staff", "user_id"),
+            ("exam_staff", "user_id"),
+            ("account_staff", "user_id"),
+            ("attendance", "student_id"),
+            ("attendance", "subject_id"),
+            ("attendance", "date"),
+            ("marks", "student_id"),
+            # Marks table indexes handled at creation
+            ("fees", "student_id"),
+            ("fee_payments", "fee_id"),
+            ("fee_payments", "payment_date"),
+            ("feedback", "student_id"),
+            ("feedback", "teacher_id"),
+            ("notifications", "student_id"),
+            ("admission_requests", "status")
+        ]
+        
+        for table, col in fks:
+            add_index(table, col)
+
+        # New Tables for Exam Cell
+        print("Creating system_config table...")
+        cursor.execute("DROP TABLE IF EXISTS system_config")
+        cursor.execute("""
+            CREATE TABLE system_config (
+                id INT PRIMARY KEY,
+                mark_entry_enabled BOOLEAN DEFAULT FALSE,
+                results_published BOOLEAN DEFAULT FALSE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Seed default config
+        cursor.execute("INSERT INTO system_config (id, mark_entry_enabled, results_published) VALUES (1, FALSE, FALSE)")
+
+        # Recreate Marks table for industrial schema consistency
+        print("Migrating marks table...")
+        cursor.execute("DROP TABLE IF EXISTS marks")
+        cursor.execute("""
+            CREATE TABLE marks (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                student_id INT NOT NULL,
+                academic_year VARCHAR(20) NOT NULL,
+                semester INT NOT NULL,
+                subject_code VARCHAR(20) NOT NULL,
+                subject_name VARCHAR(100) NOT NULL,
+                exam_type VARCHAR(50) NOT NULL,
+                department VARCHAR(100) NOT NULL,
+                section VARCHAR(10) NOT NULL,
+                internal_marks FLOAT DEFAULT 0,
+                external_marks FLOAT DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'Pending',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX (student_id),
+                INDEX (academic_year),
+                INDEX (semester),
+                INDEX (subject_code),
+                INDEX (exam_type),
+                INDEX (department),
+                INDEX (section),
+                INDEX (status)
+            )
+        """)
+
+        print("Dropping legacy leave_requests and ensuring question_papers schema...")
+        cursor.execute("DROP TABLE IF EXISTS leave_requests")
+        cursor.execute("DROP TABLE IF EXISTS question_papers")
+        cursor.execute("""
+            CREATE TABLE question_papers (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                subject_code VARCHAR(20) NOT NULL,
+                subject_name VARCHAR(100) NOT NULL,
+                faculty_name VARCHAR(100) NOT NULL,
+                semester INT NOT NULL,
+                questions_data TEXT,
+                file_url VARCHAR(255),
+                exam_type VARCHAR(50) DEFAULT 'Regular',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        """)
 
         connection.commit()
-        print("Database schema fixed successfully!")
+        print("Scalable industry-standard schema migration COMPLETE.")
         
         cursor.close()
         connection.close()
     except Exception as e:
-        print(f"Error fixing database: {e}")
+        print(f"Migration error: {e}")
 
 if __name__ == "__main__":
-    fix_db()
+    migrate()

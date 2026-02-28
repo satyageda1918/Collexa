@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import qrcode
 import io
 import base64
@@ -45,12 +45,9 @@ async def get_dashboard_stats(
     total_students = db.query(models.User).filter(models.User.role == models.UserRole.STUDENT).count()
     # Mocking active classes for now, we can base it on schedule later
     active_classes = 3
-    pending_leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "Pending").count()
-    
     return {
         "total_students": total_students,
-        "active_classes": active_classes,
-        "pending_leaves": pending_leaves
+        "active_classes": active_classes
     }
 
 @router.get("/students", response_model=List[schemas.StudentWithAttendance])
@@ -100,19 +97,6 @@ async def generate_attendance_qr(
     img_str = base64.b64encode(buf.getvalue()).decode()
     return {"qr_code": img_str}
 
-@router.post("/leave-request", response_model=schemas.LeaveRequest)
-async def teacher_leave_request(
-    leave: schemas.LeaveRequestBase,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(dependencies.RoleChecker(["TEACHER"]))
-):
-    # Simplified: reuse LeaveRequest model for teachers too, or create separate table
-    # For now, let's just use it and assume student_id can be any user_id
-    db_leave = models.LeaveRequest(**leave.dict(), student_id=current_user.id)
-    db.add(db_leave)
-    db.commit()
-    db.refresh(db_leave)
-    return db_leave
 
 @router.get("/class-attendance/{subject_id}/{hour_slot}")
 async def get_class_attendance(
@@ -138,3 +122,62 @@ async def get_class_attendance(
             "present": s.id in attended_ids
         })
     return result
+@router.get("/students-for-marking", response_model=List[schemas.UserDetailed])
+async def get_students_for_marking(
+    year: int,
+    department: str,
+    section: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(dependencies.RoleChecker(["TEACHER"]))
+):
+    query = db.query(models.User).join(models.Student).filter(
+        models.Student.year == year
+    )
+    if department != "All Departments": query = query.filter(models.Student.department == department)
+    if section != "All Sections": query = query.filter(models.Student.section == section)
+    return query.all()
+
+@router.post("/submit-marks")
+async def submit_marks(
+    marks_list: List[schemas.MarkCreate],
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(dependencies.RoleChecker(["TEACHER"]))
+):
+    # Check if mark entry is enabled
+    config = db.query(models.SystemConfig).first()
+    if not config or not config.mark_entry_enabled:
+        raise HTTPException(status_code=403, detail="Mark entry is currently disabled by Exam Cell")
+
+    for entry in marks_list:
+        # Check if record exists
+        existing = db.query(models.Mark).filter(
+            models.Mark.student_id == entry.student_id,
+            models.Mark.subject_code == entry.subject_code,
+            models.Mark.semester == entry.semester,
+            models.Mark.exam_type == entry.exam_type
+        ).first()
+
+        if existing:
+            existing.internal_marks = entry.internal_marks
+            existing.external_marks = entry.external_marks
+            existing.status = "Pending" # Reset if updated
+            existing.academic_year = entry.academic_year
+            existing.subject_name = entry.subject_name
+            existing.department = entry.department
+            existing.section = entry.section
+        else:
+            new_mark = models.Mark(
+                **entry.dict(),
+                status="Pending"
+            )
+            db.add(new_mark)
+    
+    db.commit()
+    return {"message": "Marks submitted successfully for processing"}
+
+@router.get("/marks-history", response_model=List[schemas.Mark])
+async def get_marks_history(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(dependencies.RoleChecker(["TEACHER"]))
+):
+    return db.query(models.Mark).all()

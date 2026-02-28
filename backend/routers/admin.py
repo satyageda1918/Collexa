@@ -77,6 +77,12 @@ async def create_user(
                 address=user_in.address
             )
             db.add(teacher)
+        elif user_in.role == models.UserRole.ADMISSION:
+            db.add(models.AdmissionStaff(user_id=db_user.id))
+        elif user_in.role == models.UserRole.EXAM:
+            db.add(models.ExamStaff(user_id=db_user.id))
+        elif user_in.role == models.UserRole.ACCOUNT:
+            db.add(models.AccountStaff(user_id=db_user.id))
         
         db.commit()
         db.refresh(db_user)
@@ -106,7 +112,7 @@ async def delete_user(
     await manager.broadcast("USERS_UPDATED")
     return {"message": "User deleted successfully"}
 
-@router.put("/users/{user_id}", response_model=schemas.User)
+@router.put("/users/{user_id}", response_model=schemas.UserDetailed)
 async def update_user(
     user_id: int,
     user_update: schemas.UserUpdate,
@@ -162,6 +168,18 @@ async def update_user(
                 teacher.phone_number = user_update.phone_number
             if user_update.address is not None:
                 teacher.address = user_update.address
+        
+        elif db_user.role == models.UserRole.ADMISSION:
+            if not db.query(models.AdmissionStaff).filter(models.AdmissionStaff.user_id == user_id).first():
+                db.add(models.AdmissionStaff(user_id=user_id))
+        
+        elif db_user.role == models.UserRole.EXAM:
+            if not db.query(models.ExamStaff).filter(models.ExamStaff.user_id == user_id).first():
+                db.add(models.ExamStaff(user_id=user_id))
+                
+        elif db_user.role == models.UserRole.ACCOUNT:
+            if not db.query(models.AccountStaff).filter(models.AccountStaff.user_id == user_id).first():
+                db.add(models.AccountStaff(user_id=user_id))
 
         db.commit()
         db.refresh(db_user)
@@ -172,28 +190,3 @@ async def update_user(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update user: {str(e)}")
 
-@router.get("/leave-requests", response_model=List[schemas.LeaveRequest])
-async def list_all_leave_requests(
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(dependencies.RoleChecker(["ADMIN"]))
-):
-    return db.query(models.LeaveRequest).all()
-
-@router.post("/leave-requests/{leave_id}/approve")
-async def approve_leave(
-    leave_id: int,
-    status: str, # Approved/Rejected
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(dependencies.RoleChecker(["ADMIN"]))
-):
-    db_leave = db.query(models.LeaveRequest).filter(models.LeaveRequest.id == leave_id).first()
-    if not db_leave:
-        raise HTTPException(status_code=404, detail="Leave request not found")
-    
-    db_leave.status = status
-    db.commit()
-    
-    await manager.broadcast("LEAVES_UPDATED")
-    await manager.send_personal_message("NEW_NOTIFICATION", db_leave.student_id)
-    
-    return {"message": f"Leave request {status}"}

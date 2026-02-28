@@ -15,7 +15,9 @@ def seed():
         {"name": "Admin User", "email": "admin@college.com", "password": "Admin@123", "role": models.UserRole.ADMIN},
         {"name": "Student User", "email": "student@college.com", "password": "Student@123", "role": models.UserRole.STUDENT},
         {"name": "Teacher User", "email": "teacher@college.com", "password": "Teacher@123", "role": models.UserRole.TEACHER},
-        {"name": "Office User", "email": "office@college.com", "password": "Office@123", "role": models.UserRole.OFFICE},
+        {"name": "Admission Dept", "email": "admission@college.com", "password": "Admission@123", "role": models.UserRole.ADMISSION},
+        {"name": "Exam Cell", "email": "exam@college.com", "password": "Exam@123", "role": models.UserRole.EXAM},
+        {"name": "Account Section", "email": "account@college.com", "password": "Account@123", "role": models.UserRole.ACCOUNT},
     ]
 
     for u in users:

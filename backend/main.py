@@ -6,7 +6,7 @@ from datetime import timedelta
 import models, schemas, auth, database, dependencies
 import json
 from database import engine, get_db
-from routers import student, teacher, admin, office, ai
+from routers import student, teacher, admin, staff, ai
 
 try:
     models.Base.metadata.create_all(bind=engine)
@@ -31,7 +31,7 @@ from websocket_manager import manager
 app.state.ws_manager = manager
 
 @app.websocket("/ws/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: int):
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
     await manager.connect(websocket, user_id)
     try:
         while True:
@@ -51,7 +51,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = auth.create_access_token(
-        data={"sub": user.email, "role": user.role.value}, expires_delta=access_token_expires
+        data={"sub": user.email, "role": user.role.value, "id": user.id}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -63,7 +63,7 @@ async def read_users_me(current_user: models.User = Depends(dependencies.get_cur
 app.include_router(student.router, prefix="/student", tags=["student"])
 app.include_router(teacher.router, prefix="/teacher", tags=["teacher"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
-app.include_router(office.router, prefix="/office", tags=["office"])
+app.include_router(staff.router, prefix="/staff", tags=["staff"])
 app.include_router(ai.router, prefix="/ai", tags=["ai"])
 
 @app.get("/")

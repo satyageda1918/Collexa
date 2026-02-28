@@ -7,11 +7,13 @@ import Login from './pages/Login';
 import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import OfficeDashboard from './pages/OfficeDashboard';
+import AdmissionPortal from './pages/AdmissionPortal';
+import ExamCellPortal from './pages/ExamCellPortal';
+import AccountPortal from './pages/AccountPortal';
 import AttendanceScanner from './pages/AttendanceScanner';
 
 // Placeholder components for other portals
-const Unauthorized = () => <div className="p-8 text-center"><h1 className="text-2xl font-bold text-red-500">Unauthorized Access</h1></div>;
+const Unauthorized = () => <div className="p-8 text-center bg-red-50 min-h-screen flex items-center justify-center"><h1 className="text-3xl font-black text-red-600 uppercase tracking-tighter">403 | Forbidden Entry</h1></div>;
 
 const App = () => {
   return (
@@ -25,8 +27,9 @@ const App = () => {
             <Route path="/student/scan" element={<ProtectedRoute allowedRoles={['STUDENT']}><AttendanceScanner /></ProtectedRoute>} />
             <Route path="/teacher" element={<ProtectedRoute allowedRoles={['TEACHER']}><TeacherDashboard /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin-dashboard" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/office" element={<ProtectedRoute allowedRoles={['OFFICE']}><OfficeDashboard /></ProtectedRoute>} />
+            <Route path="/admission" element={<ProtectedRoute allowedRoles={['ADMISSION', 'ADMIN']}><AdmissionPortal /></ProtectedRoute>} />
+            <Route path="/exam-cell" element={<ProtectedRoute allowedRoles={['EXAM', 'ADMIN']}><ExamCellPortal /></ProtectedRoute>} />
+            <Route path="/account-section" element={<ProtectedRoute allowedRoles={['ACCOUNT', 'ADMIN']}><AccountPortal /></ProtectedRoute>} />
           </Route>
 
           <Route path="/unauthorized" element={<Unauthorized />} />
