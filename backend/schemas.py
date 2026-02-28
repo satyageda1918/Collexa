@@ -15,15 +15,23 @@ class UserCreateExtended(UserCreate):
     department: Optional[str] = None
     year: Optional[int] = None
     section: Optional[str] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: Optional[UserRole] = None
+    password: Optional[str] = None
+    department: Optional[str] = None
+    year: Optional[int] = None
+    section: Optional[str] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
 
 class User(UserBase):
     id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -74,6 +82,12 @@ class TeacherUpdate(BaseModel):
     phone_number: Optional[str] = None
     address: Optional[str] = None
 
+class UserDetailed(User):
+    student_profile: Optional[Student] = None
+    teacher_profile: Optional[Teacher] = None
+    class Config:
+        from_attributes = True
+
 class AttendanceBase(BaseModel):
     student_id: int
     subject_id: int
@@ -117,7 +131,7 @@ class LeaveRequestBase(BaseModel):
 class LeaveRequest(LeaveRequestBase):
     id: int
     status: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
     class Config:
         from_attributes = True
 
@@ -139,7 +153,7 @@ class NotificationBase(BaseModel):
 class Notification(NotificationBase):
     id: int
     is_read: bool
-    created_at: datetime
+    created_at: Optional[datetime] = None
     class Config:
         from_attributes = True
 
@@ -157,7 +171,7 @@ class AdmissionRequestCreate(AdmissionRequestBase):
 class AdmissionRequest(AdmissionRequestBase):
     id: int
     status: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
     class Config:
         from_attributes = True
 

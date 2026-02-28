@@ -6,7 +6,7 @@ from websocket_manager import manager # Import the websocket manager
 
 router = APIRouter()
 
-@router.get("/users", response_model=List[schemas.User])
+@router.get("/users", response_model=List[schemas.UserDetailed])
 async def list_users(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(dependencies.RoleChecker(["ADMIN"]))
@@ -29,7 +29,7 @@ async def get_dashboard_stats(
     }
 
 
-@router.post("/users", response_model=schemas.User)
+@router.post("/users", response_model=schemas.UserDetailed)
 async def create_user(
     user_in: schemas.UserCreateExtended,
     db: Session = Depends(database.get_db),
@@ -40,7 +40,7 @@ async def create_user(
         raise HTTPException(status_code=400, detail="User with this email already exists")
     
     try:
-        # Create User (don't commit yet)
+        # Create User
         db_user = models.User(
             name=user_in.name,
             email=user_in.email,
@@ -48,18 +48,20 @@ async def create_user(
             role=user_in.role
         )
         db.add(db_user)
-        db.flush()  # Get the ID without committing
+        db.flush()  # Get the ID
         
-        # Create Profile based on role (using the flushed ID)
+        # Create Profile based on role
         if user_in.role == models.UserRole.STUDENT:
             student = models.Student(
                 user_id=db_user.id,
                 department=user_in.department or "General",
                 year=user_in.year or 1,
-                section=user_in.section or "A"
+                section=user_in.section or "A",
+                phone_number=user_in.phone_number,
+                address=user_in.address
             )
             db.add(student)
-            # Add initial Fee record for student
+            # Add initial Fee record
             fee = models.Fee(
                 student_id=db_user.id,
                 total_amount=50000.0,
@@ -70,19 +72,17 @@ async def create_user(
         elif user_in.role == models.UserRole.TEACHER:
             teacher = models.Teacher(
                 user_id=db_user.id,
-                department=user_in.department or "General"
+                department=user_in.department or "General",
+                phone_number=user_in.phone_number,
+                address=user_in.address
             )
             db.add(teacher)
         
-        # Single commit for all changes atomically
         db.commit()
         db.refresh(db_user)
         
         await manager.broadcast("USERS_UPDATED")
         return db_user
-    except HTTPException:
-        db.rollback()
-        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
@@ -117,15 +117,60 @@ async def update_user(
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    for var, value in vars(user_update).items():
-        if value is not None:
-            setattr(db_user, var, value)
-    
-    db.commit()
-    db.refresh(db_user)
-    
-    await manager.broadcast("USERS_UPDATED")
-    return db_user
+    try:
+        # Update User fields
+        if user_update.name is not None:
+            db_user.name = user_update.name
+        if user_update.email is not None:
+            # Check if email is already taken by another user
+            existing = db.query(models.User).filter(models.User.email == user_update.email, models.User.id != user_id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="Email already taken")
+            db_user.email = user_update.email
+        if user_update.role is not None:
+            db_user.role = user_update.role
+        if user_update.password:
+            db_user.hashed_password = auth.get_password_hash(user_update.password)
+
+        # Update Profile based on role (even if role didn't change, we update profile fields)
+        if db_user.role == models.UserRole.STUDENT:
+            student = db.query(models.Student).filter(models.Student.user_id == user_id).first()
+            if not student:
+                student = models.Student(user_id=user_id)
+                db.add(student)
+            
+            if user_update.department is not None:
+                student.department = user_update.department
+            if user_update.year is not None:
+                student.year = user_update.year
+            if user_update.section is not None:
+                student.section = user_update.section
+            if user_update.phone_number is not None:
+                student.phone_number = user_update.phone_number
+            if user_update.address is not None:
+                student.address = user_update.address
+                
+        elif db_user.role == models.UserRole.TEACHER:
+            teacher = db.query(models.Teacher).filter(models.Teacher.user_id == user_id).first()
+            if not teacher:
+                teacher = models.Teacher(user_id=user_id)
+                db.add(teacher)
+            
+            if user_update.department is not None:
+                teacher.department = user_update.department
+            if user_update.phone_number is not None:
+                teacher.phone_number = user_update.phone_number
+            if user_update.address is not None:
+                teacher.address = user_update.address
+
+        db.commit()
+        db.refresh(db_user)
+        
+        await manager.broadcast("USERS_UPDATED")
+        return db_user
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update user: {str(e)}")
 
 @router.get("/leave-requests", response_model=List[schemas.LeaveRequest])
 async def list_all_leave_requests(

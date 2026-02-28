@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS students (
     department VARCHAR(100),
     year INT,
     section VARCHAR(10),
+    phone_number VARCHAR(20),
+    address TEXT,
     gpa FLOAT DEFAULT 0.0,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -28,6 +30,8 @@ CREATE TABLE IF NOT EXISTS students (
 CREATE TABLE IF NOT EXISTS teachers (
     user_id INT PRIMARY KEY,
     department VARCHAR(100),
+    phone_number VARCHAR(20),
+    address TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -78,6 +82,8 @@ CREATE TABLE IF NOT EXISTS leave_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
     student_id INT,
     reason TEXT,
+    start_date DATE,
+    end_date DATE,
     status VARCHAR(20) DEFAULT 'Pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
