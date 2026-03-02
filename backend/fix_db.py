@@ -61,6 +61,13 @@ def migrate():
             add_column(table, "created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
             add_column(table, "updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
 
+        # Add missing staff table columns
+        print("Ensuring staff tables have all required columns...")
+        add_column("admission_staff", "access_level", "VARCHAR(50) DEFAULT 'Standard'")
+        add_column("exam_staff", "examination_zone", "VARCHAR(50) DEFAULT 'Main Campus'")
+        add_column("account_staff", "ledger_access", "BOOLEAN DEFAULT TRUE")
+        print("✓ Staff table columns verified")
+
         # Precision
         modify_column("fees", "total_amount", "DECIMAL(12, 2)")
         modify_column("fees", "paid_amount", "DECIMAL(12, 2)")
