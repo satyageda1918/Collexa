@@ -27,9 +27,9 @@ const App = () => {
             <Route path="/student/scan" element={<ProtectedRoute allowedRoles={['STUDENT']}><AttendanceScanner /></ProtectedRoute>} />
             <Route path="/teacher" element={<ProtectedRoute allowedRoles={['TEACHER']}><TeacherDashboard /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admission" element={<ProtectedRoute allowedRoles={['ADMISSION', 'ADMIN']}><AdmissionPortal /></ProtectedRoute>} />
-            <Route path="/exam-cell" element={<ProtectedRoute allowedRoles={['EXAM', 'ADMIN']}><ExamCellPortal /></ProtectedRoute>} />
-            <Route path="/account-section" element={<ProtectedRoute allowedRoles={['ACCOUNT', 'ADMIN']}><AccountPortal /></ProtectedRoute>} />
+            <Route path="/admission" element={<ProtectedRoute allowedRoles={['ADMISSION']}><AdmissionPortal /></ProtectedRoute>} />
+            <Route path="/exam-cell" element={<ProtectedRoute allowedRoles={['EXAM']}><ExamCellPortal /></ProtectedRoute>} />
+            <Route path="/account-section" element={<ProtectedRoute allowedRoles={['ACCOUNT']}><AccountPortal /></ProtectedRoute>} />
           </Route>
 
           <Route path="/unauthorized" element={<Unauthorized />} />

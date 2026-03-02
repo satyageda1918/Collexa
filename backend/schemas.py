@@ -130,6 +130,9 @@ class Attendance(AttendanceBase):
     class Config:
         from_attributes = True
 
+class AttendanceMarkRequest(BaseModel):
+    qr_code_data: str
+
 class MarkBase(BaseModel):
     student_id: int
     academic_year: str
@@ -190,6 +193,22 @@ class FeedbackBase(BaseModel):
 class Feedback(FeedbackBase):
     id: int
     student_id: int
+    class Config:
+        from_attributes = True
+
+class GrievanceCreate(BaseModel):
+    title: str
+    description: str
+    category: str = "Academic"
+
+class Grievance(BaseModel):
+    id: int
+    student_id: int
+    title: str
+    description: str
+    category: str
+    status: str
+    created_at: datetime
     class Config:
         from_attributes = True
 

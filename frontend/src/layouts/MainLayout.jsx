@@ -37,9 +37,6 @@ const MainLayout = () => {
         ],
         ADMIN: [
             { name: 'Super Admin', path: '/admin', icon: ShieldCheck },
-            { name: 'Admission Desk', path: '/admission', icon: GraduationCap },
-            { name: 'Exam Cell', path: '/exam-cell', icon: ClipboardList },
-            { name: 'Accounts', path: '/account-section', icon: Wallet },
         ],
         ADMISSION: [
             { name: 'Admission Portal', path: '/admission', icon: GraduationCap },

@@ -58,6 +58,7 @@ class Student(Base):
     marks = relationship("Mark", back_populates="student", cascade="all, delete-orphan")
     fees = relationship("Fee", back_populates="student", cascade="all, delete-orphan")
     feedback = relationship("Feedback", back_populates="student", cascade="all, delete-orphan")
+    grievances = relationship("Grievance", back_populates="student", cascade="all, delete-orphan")
 
 class Teacher(Base):
     __tablename__ = "teachers"
@@ -163,6 +164,19 @@ class Feedback(Base):
 
     student = relationship("Student", back_populates="feedback")
     teacher = relationship("Teacher", back_populates="feedback")
+
+class Grievance(Base):
+    __tablename__ = "grievances"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.user_id"), index=True)
+    title = Column(String(200))
+    description = Column(Text)
+    category = Column(String(50), index=True) # Academic, Administrative, Infrastructure, Harassment, Other
+    status = Column(String(20), default="Pending", index=True) # Pending, In Progress, Resolved, Closed
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    student = relationship("Student", back_populates="grievances")
 
 class Notification(Base):
     __tablename__ = "notifications"

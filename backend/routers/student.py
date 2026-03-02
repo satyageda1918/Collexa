@@ -130,14 +130,32 @@ async def submit_feedback(
     db.refresh(db_feedback)
     return db_feedback
 
+@router.post("/grievance")
+async def submit_grievance(
+    grievance: schemas.GrievanceCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(dependencies.RoleChecker(["STUDENT"]))
+):
+    db_grievance = models.Grievance(
+        student_id=current_user.id,
+        title=grievance.title,
+        description=grievance.description,
+        category=grievance.category,
+        status="Pending"
+    )
+    db.add(db_grievance)
+    db.commit()
+    db.refresh(db_grievance)
+    return {"message": "Grievance submitted successfully", "id": db_grievance.id}
+
 @router.post("/mark-attendance")
 async def mark_attendance(
-    qr_code_data: str,
+    request: schemas.AttendanceMarkRequest,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(dependencies.RoleChecker(["STUDENT"]))
 ):
     # Data format: ATTENDANCE|subject_id|hour_slot|teacher_id
-    parts = qr_code_data.split("|")
+    parts = request.qr_code_data.split("|")
     if len(parts) != 4 or parts[0] != "ATTENDANCE":
         raise HTTPException(status_code=400, detail="Invalid QR Code")
     

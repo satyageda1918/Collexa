@@ -48,6 +48,9 @@ const Login = () => {
         <div className="min-h-screen flex items-center justify-center bg-brand-bg px-4">
             <div className="max-w-md w-full space-y-8 p-10 bg-brand-card rounded-2xl shadow-xl border border-slate-200">
                 <div>
+                    <div className="flex justify-center mb-6">
+                        <img src="/logo.webp" alt="College Logo" className="h-20 w-20 object-contain" />
+                    </div>
                     <h2 className="mt-6 text-center text-3xl font-extrabold text-brand-text">
                         College ERP Portal
                     </h2>

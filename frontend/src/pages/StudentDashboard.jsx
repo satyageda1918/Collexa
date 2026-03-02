@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import {
     TrendingUp,
@@ -50,6 +51,8 @@ ChartJS.register(
 
 const StudentDashboard = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
     const [activeTab, setActiveTab] = useState('overview');
     const [profile, setProfile] = useState(null);
     const [attendance, setAttendance] = useState([]);
@@ -58,6 +61,18 @@ const StudentDashboard = () => {
     const [config, setConfig] = useState({ results_published: false });
     const [prediction, setPrediction] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [selectedSemester, setSelectedSemester] = useState('all');
+    const [grievance, setGrievance] = useState({ title: '', description: '', category: 'Academic' });
+    const [activeService, setActiveService] = useState('grievance'); // 'grievance' or 'feedback'
+
+    // Attendance filters
+    const [attendanceFilters, setAttendanceFilters] = useState({
+        semester: 'all',
+        subject: 'all',
+        date: '',
+        startDate: '',
+        endDate: ''
+    });
 
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
@@ -125,24 +140,48 @@ const StudentDashboard = () => {
 
     useEffect(() => {
         fetchData();
+    }, []);
 
-        // Establish Real-Time WebSocket Connection
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//localhost:8000/ws/${user?.id || 'guest'}`;
-        const socket = new WebSocket(wsUrl);
+    // WebSocket for real-time updates (currently disabled - can be enabled when backend is ready)
+    // useEffect(() => {
+    //     if (!user?.id) return;
 
-        socket.onopen = () => console.log('Student WS Connected');
-        socket.onmessage = (event) => {
-            const msg = event.data;
-            if (['FEES_UPDATED', 'ATTENDANCE_UPDATED', 'CONFIG_UPDATED', 'NEW_NOTIFICATION'].includes(msg)) {
-                console.log('Real-time update received:', msg);
-                fetchData(); // Instantly refresh data on event
-            }
-        };
-        socket.onclose = () => console.log('Student WS Disconnected');
+    //     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    //     const wsUrl = `${wsProtocol}//localhost:8000/ws/${user.id}`;
+    //     let socket = null;
 
-        return () => socket.close();
-    }, [user?.id]);
+    //     try {
+    //         socket = new WebSocket(wsUrl);
+    //         socket.onopen = () => console.log('Student WS Connected');
+    //         socket.onmessage = (event) => {
+    //             const msg = event.data;
+    //             if (['FEES_UPDATED', 'ATTENDANCE_UPDATED', 'CONFIG_UPDATED', 'NEW_NOTIFICATION'].includes(msg)) {
+    //                 fetchData();
+    //             }
+    //         };
+    //     } catch (error) {
+    //         console.warn('WebSocket disabled');
+    //     }
+
+    //     return () => {
+    //         if (socket) socket.close(1000);
+    //     };
+    // }, [user?.id]);
+
+    // Handle tab changes and browser navigation
+    useEffect(() => {
+        // Get tab from URL hash or default to overview
+        const hash = location.hash.replace('#', '');
+        if (hash && ['overview', 'attendance', 'academics', 'fees', 'services', 'profile'].includes(hash)) {
+            setActiveTab(hash);
+        }
+    }, [location.hash]);
+
+    // Update URL hash when tab changes
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        navigate(`#${tab}`, { replace: true });
+    };
 
     const handleQrSubmit = async (e) => {
         e.preventDefault();
@@ -176,6 +215,17 @@ const StudentDashboard = () => {
             setFeedback({ teacher_id: '', rating: 5, comment: '' });
         } catch (err) {
             alert("Error submitting feedback");
+        }
+    };
+
+    const handleGrievanceSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post('/student/grievance', grievance);
+            alert("Grievance submitted successfully. We'll review it soon.");
+            setGrievance({ title: '', description: '', category: 'Academic' });
+        } catch (err) {
+            alert("Error submitting grievance");
         }
     };
 
@@ -221,15 +271,26 @@ const StudentDashboard = () => {
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-4xl font-black tracking-tight text-white uppercase italic">Student Portal</h1>
-                    <p className="text-slate-400 font-medium">Welcome back, {profile?.name}</p>
+                <div className="flex items-center gap-4">
+                    {activeTab !== 'overview' && (
+                        <button
+                            onClick={() => handleTabChange('overview')}
+                            className="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-400 hover:text-white hover:border-indigo-500 transition-all"
+                            title="Back to Home"
+                        >
+                            <ChevronRight className="rotate-180" size={20} />
+                        </button>
+                    )}
+                    <div>
+                        <h1 className="text-4xl font-black tracking-tight text-white uppercase italic">Student Portal</h1>
+                        <p className="text-slate-400 font-medium">Welcome back, {profile?.name}</p>
+                    </div>
                 </div>
                 <div className="flex bg-slate-900/50 p-1 rounded-2xl border border-slate-800">
                     {['overview', 'attendance', 'academics', 'fees', 'services', 'profile'].map((tab) => (
                         <button
                             key={tab}
-                            onClick={() => setActiveTab(tab)}
+                            onClick={() => handleTabChange(tab)}
                             className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'
                                 }`}
                         >
@@ -285,122 +346,305 @@ const StudentDashboard = () => {
 
             {/* Content Based on Tabs */}
             {activeTab === 'overview' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-8">
-                        {/* Summary Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
-                                <TrendingUp className="absolute -top-4 -right-4 h-32 w-32 opacity-10 group-hover:scale-110 transition-transform" />
-                                <h3 className="text-lg font-bold opacity-80 uppercase tracking-widest">Academic Status</h3>
-                                <p className="text-5xl font-black mt-4">{profile?.student_profile?.gpa || '3.8'}</p>
-                                <p className="text-sm opacity-60 mt-2 font-bold uppercase">Current Cumulative GPA</p>
-                            </div>
-                            <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl relative overflow-hidden">
-                                <AlertTriangle className="absolute -top-4 -right-4 h-32 w-32 text-indigo-500/10" />
-                                <h3 className="text-lg font-bold text-slate-400 uppercase tracking-widest">AI Risk Level</h3>
-                                <p className="text-5xl font-black mt-4 text-white uppercase italic">{prediction?.risk_level || 'LOW'}</p>
-                                <p className="text-sm text-slate-500 mt-2 font-bold uppercase">Based on recent performance</p>
-                            </div>
+                <div className="space-y-8">
+                    {/* Stats Summary */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+                            <TrendingUp className="absolute -top-4 -right-4 h-32 w-32 opacity-10 group-hover:scale-110 transition-transform" />
+                            <h3 className="text-sm font-bold opacity-80 uppercase tracking-widest">Academic Status</h3>
+                            <p className="text-5xl font-black mt-4">{profile?.student_profile?.gpa || '3.8'}</p>
+                            <p className="text-xs opacity-60 mt-2 font-bold uppercase">Current Cumulative GPA</p>
                         </div>
-
-                        {/* Recent Activity Simulations */}
-                        <div className="bg-slate-900 rounded-[2rem] border border-slate-800 overflow-hidden shadow-xl">
-                            <div className="p-8 border-b border-slate-800 flex justify-between items-center">
-                                <h3 className="text-xl font-bold uppercase tracking-tighter">Recent Updates</h3>
-                                <ChevronRight className="text-slate-600" />
-                            </div>
-                            <div className="divide-y divide-slate-800">
-                                {config.results_published ? marks.slice(0, 3).map((m, i) => (
-                                    <div key={i} className="p-6 flex items-center hover:bg-slate-800/30 transition-colors">
-                                        <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-                                            <ClipboardList size={24} />
-                                        </div>
-                                        <div className="ml-6">
-                                            <p className="text-base font-bold text-white">Result Published: Semester {m.semester}</p>
-                                            <p className="text-sm text-slate-500 font-medium">Internal: {m.internal_marks} | External: {m.external_marks}</p>
-                                        </div>
-                                    </div>
-                                )) : (
-                                    <div className="p-12 text-center">
-                                        <Clock className="h-8 w-8 text-slate-600 mx-auto mb-4" />
-                                        <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Awaiting Results Release</p>
-                                    </div>
-                                )}
-                            </div>
+                        <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl relative overflow-hidden">
+                            <AlertTriangle className="absolute -top-4 -right-4 h-32 w-32 text-indigo-500/10" />
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">AI Risk Level</h3>
+                            <p className="text-5xl font-black mt-4 text-white uppercase italic">{prediction?.risk_level || 'LOW'}</p>
+                            <p className="text-xs text-slate-500 mt-2 font-bold uppercase">Based on recent performance</p>
+                        </div>
+                        <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl relative overflow-hidden">
+                            <Calendar className="absolute -top-4 -right-4 h-32 w-32 text-indigo-500/10" />
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Attendance</h3>
+                            <p className="text-5xl font-black mt-4 text-white">{Math.round((attendanceStats.present / attendanceStats.total) * 100)}%</p>
+                            <p className="text-xs text-slate-500 mt-2 font-bold uppercase">Overall Presence</p>
                         </div>
                     </div>
 
-                    <div className="space-y-8">
-                        {/* Attendance Doughnut short */}
-                        <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl">
-                            <h3 className="text-lg font-bold uppercase tracking-widest text-slate-400 mb-6">Attendance Overview</h3>
-                            <div className="relative h-48 flex items-center justify-center">
-                                <Doughnut data={attendanceData} options={{ cutout: '85%', plugins: { legend: { display: false } } }} />
-                                <div className="absolute text-center">
-                                    <p className="text-3xl font-black text-white">{Math.round((attendanceStats.present / attendanceStats.total) * 100)}%</p>
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase">Avg Presence</p>
-                                </div>
-                            </div>
-                        </div>
+                    {/* Quick Action Cards */}
+                    <div>
+                        <h3 className="text-2xl font-black uppercase italic mb-6 text-white">Quick Actions</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {/* Scan Attendance Card */}
+                            <button
+                                onClick={() => handleTabChange('attendance')}
+                                className="bg-gradient-to-br from-emerald-600 to-emerald-900 p-8 rounded-[2rem] shadow-xl hover:scale-[1.02] transition-all text-left group relative overflow-hidden"
+                            >
+                                <div className="absolute -top-8 -right-8 h-32 w-32 bg-white/10 rounded-full group-hover:scale-150 transition-transform"></div>
+                                <QrCode className="h-12 w-12 text-white mb-4 relative z-10" />
+                                <h4 className="text-xl font-black text-white uppercase tracking-tight relative z-10">Scan Attendance</h4>
+                                <p className="text-sm text-emerald-100 mt-2 font-medium relative z-10">Mark your attendance using QR code</p>
+                            </button>
 
-                        {/* QR Quick Access */}
-                        <button
-                            onClick={() => setActiveTab('attendance')}
-                            className="w-full bg-white text-slate-900 p-8 rounded-[2rem] font-black uppercase text-center shadow-2xl hover:scale-[1.02] transition-transform flex flex-col items-center gap-4"
-                        >
-                            <QrCode size={48} />
-                            <span className="tracking-tighter text-xl">Quick QR Attendance</span>
-                        </button>
+                            {/* View Attendance Card */}
+                            <button
+                                onClick={() => handleTabChange('attendance')}
+                                className="bg-slate-900 border-2 border-slate-800 p-8 rounded-[2rem] shadow-xl hover:scale-[1.02] hover:border-indigo-500 transition-all text-left group"
+                            >
+                                <Calendar className="h-12 w-12 text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
+                                <h4 className="text-xl font-black text-white uppercase tracking-tight">View Attendance</h4>
+                                <p className="text-sm text-slate-400 mt-2 font-medium">Check your attendance records</p>
+                            </button>
+
+                            {/* View Results Card */}
+                            <button
+                                onClick={() => handleTabChange('academics')}
+                                className="bg-slate-900 border-2 border-slate-800 p-8 rounded-[2rem] shadow-xl hover:scale-[1.02] hover:border-indigo-500 transition-all text-left group"
+                            >
+                                <BookOpen className="h-12 w-12 text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
+                                <h4 className="text-xl font-black text-white uppercase tracking-tight">View Results</h4>
+                                <p className="text-sm text-slate-400 mt-2 font-medium">Check your exam results</p>
+                            </button>
+
+                            {/* Pay Fees Card */}
+                            <button
+                                onClick={() => handleTabChange('fees')}
+                                className="bg-slate-900 border-2 border-slate-800 p-8 rounded-[2rem] shadow-xl hover:scale-[1.02] hover:border-indigo-500 transition-all text-left group"
+                            >
+                                <CreditCard className="h-12 w-12 text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
+                                <h4 className="text-xl font-black text-white uppercase tracking-tight">Pay Fees</h4>
+                                <p className="text-sm text-slate-400 mt-2 font-medium">Make online fee payments</p>
+                            </button>
+
+                            {/* Submit Grievance Card */}
+                            <button
+                                onClick={() => {
+                                    setActiveService('grievance');
+                                    handleTabChange('services');
+                                }}
+                                className="bg-slate-900 border-2 border-slate-800 p-8 rounded-[2rem] shadow-xl hover:scale-[1.02] hover:border-indigo-500 transition-all text-left group"
+                            >
+                                <AlertTriangle className="h-12 w-12 text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
+                                <h4 className="text-xl font-black text-white uppercase tracking-tight">Submit Grievance</h4>
+                                <p className="text-sm text-slate-400 mt-2 font-medium">Report issues or concerns</p>
+                            </button>
+
+                            {/* Faculty Feedback Card */}
+                            <button
+                                onClick={() => {
+                                    setActiveService('feedback');
+                                    handleTabChange('services');
+                                }}
+                                className="bg-slate-900 border-2 border-slate-800 p-8 rounded-[2rem] shadow-xl hover:scale-[1.02] hover:border-indigo-500 transition-all text-left group"
+                            >
+                                <MessageSquare className="h-12 w-12 text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
+                                <h4 className="text-xl font-black text-white uppercase tracking-tight">Faculty Feedback</h4>
+                                <p className="text-sm text-slate-400 mt-2 font-medium">Rate and review your teachers</p>
+                            </button>
+
+                            {/* Profile Settings Card */}
+                            <button
+                                onClick={() => handleTabChange('profile')}
+                                className="bg-slate-900 border-2 border-slate-800 p-8 rounded-[2rem] shadow-xl hover:scale-[1.02] hover:border-indigo-500 transition-all text-left group"
+                            >
+                                <User className="h-12 w-12 text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
+                                <h4 className="text-xl font-black text-white uppercase tracking-tight">Profile Settings</h4>
+                                <p className="text-sm text-slate-400 mt-2 font-medium">Update your personal information</p>
+                            </button>
+
+                            {/* Fee History Card */}
+                            <button
+                                onClick={() => handleTabChange('fees')}
+                                className="bg-slate-900 border-2 border-slate-800 p-8 rounded-[2rem] shadow-xl hover:scale-[1.02] hover:border-indigo-500 transition-all text-left group"
+                            >
+                                <ClipboardList className="h-12 w-12 text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
+                                <h4 className="text-xl font-black text-white uppercase tracking-tight">Fee History</h4>
+                                <p className="text-sm text-slate-400 mt-2 font-medium">View payment records</p>
+                            </button>
+
+                            {/* Notifications Card */}
+                            <button
+                                onClick={() => setShowNotifications(true)}
+                                className="bg-slate-900 border-2 border-slate-800 p-8 rounded-[2rem] shadow-xl hover:scale-[1.02] hover:border-indigo-500 transition-all text-left group relative"
+                            >
+                                <Bell className="h-12 w-12 text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-6 left-16 h-6 w-6 bg-red-500 text-white text-xs font-black flex items-center justify-center rounded-full">
+                                        {unreadCount}
+                                    </span>
+                                )}
+                                <h4 className="text-xl font-black text-white uppercase tracking-tight">Notifications</h4>
+                                <p className="text-sm text-slate-400 mt-2 font-medium">View important updates</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Recent Updates Section */}
+                    <div className="bg-slate-900 rounded-[2rem] border border-slate-800 overflow-hidden shadow-xl">
+                        <div className="p-8 border-b border-slate-800 flex justify-between items-center">
+                            <h3 className="text-xl font-bold uppercase tracking-tighter">Recent Updates</h3>
+                            <ChevronRight className="text-slate-600" />
+                        </div>
+                        <div className="divide-y divide-slate-800">
+                            {config.results_published ? marks.slice(0, 3).map((m, i) => (
+                                <div key={i} className="p-6 flex items-center hover:bg-slate-800/30 transition-colors">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                                        <ClipboardList size={24} />
+                                    </div>
+                                    <div className="ml-6">
+                                        <p className="text-base font-bold text-white">Result Published: Semester {m.semester}</p>
+                                        <p className="text-sm text-slate-500 font-medium">Internal: {m.internal_marks} | External: {m.external_marks}</p>
+                                    </div>
+                                </div>
+                            )) : (
+                                <div className="p-12 text-center">
+                                    <Clock className="h-8 w-8 text-slate-600 mx-auto mb-4" />
+                                    <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Awaiting Results Release</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
 
             {activeTab === 'attendance' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl">
-                        <h3 className="text-2xl font-black uppercase italic mb-8 flex items-center gap-4">
-                            <QrCode className="text-indigo-500" /> QR SCANNER
+                <div className="space-y-8">
+                    {/* Advanced Filters */}
+                    <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl">
+                        <h3 className="text-xl font-black uppercase italic mb-6 flex items-center gap-3">
+                            <Calendar className="text-indigo-500" size={24} />
+                            Filter Attendance Records
                         </h3>
-                        <form onSubmit={handleQrSubmit} className="space-y-6">
-                            <div className="p-8 border-2 border-dashed border-slate-700 rounded-3xl flex flex-col items-center gap-6 bg-slate-950">
-                                <div className="h-48 w-48 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 relative overflow-hidden">
-                                    <div className="absolute top-0 w-full h-1 bg-indigo-500 animate-scan shadow-[0_0_15px_#4f46e5]"></div>
-                                    <QrCode size={80} className="text-slate-700" />
-                                </div>
-                                <p className="text-sm text-slate-500 text-center font-bold px-4 uppercase">Simulate scanning by entering the QR code string below</p>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-2">Semester</label>
+                                <select
+                                    value={attendanceFilters.semester}
+                                    onChange={(e) => setAttendanceFilters({ ...attendanceFilters, semester: e.target.value })}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-bold text-sm"
+                                >
+                                    <option value="all">All Semesters</option>
+                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                                        <option key={sem} value={sem}>Semester {sem}</option>
+                                    ))}
+                                </select>
                             </div>
-                            <input
-                                type="text"
-                                value={qrValue}
-                                onChange={(e) => setQrValue(e.target.value)}
-                                placeholder="ATTENDANCE|1|1|1"
-                                className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-white font-bold focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600"
-                            />
-                            <button type="submit" className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-500 transition-all uppercase tracking-widest shadow-lg active:scale-95">
-                                Mark Attendance
-                            </button>
-                        </form>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-2">Subject</label>
+                                <select
+                                    value={attendanceFilters.subject}
+                                    onChange={(e) => setAttendanceFilters({ ...attendanceFilters, subject: e.target.value })}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-bold text-sm"
+                                >
+                                    <option value="all">All Subjects</option>
+                                    {[...new Set(attendance.map(a => a.subject_id))].map(subId => (
+                                        <option key={subId} value={subId}>Subject {subId}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-2">Specific Date</label>
+                                <input
+                                    type="date"
+                                    value={attendanceFilters.date}
+                                    onChange={(e) => setAttendanceFilters({ ...attendanceFilters, date: e.target.value })}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-bold text-sm"
+                                />
+                            </div>
+                            <div className="flex items-end">
+                                <button
+                                    onClick={() => setAttendanceFilters({ semester: 'all', subject: 'all', date: '', startDate: '', endDate: '' })}
+                                    className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl px-4 py-3 text-slate-400 hover:text-white font-bold text-sm transition-all"
+                                >
+                                    Clear Filters
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Date Range Filter */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-2">From Date</label>
+                                <input
+                                    type="date"
+                                    value={attendanceFilters.startDate}
+                                    onChange={(e) => setAttendanceFilters({ ...attendanceFilters, startDate: e.target.value, date: '' })}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-bold text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-2">To Date</label>
+                                <input
+                                    type="date"
+                                    value={attendanceFilters.endDate}
+                                    onChange={(e) => setAttendanceFilters({ ...attendanceFilters, endDate: e.target.value, date: '' })}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-bold text-sm"
+                                />
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl">
-                        <h3 className="text-2xl font-black uppercase italic mb-8">Attendance History</h3>
-                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            {attendance.length > 0 ? attendance.map((a, i) => (
-                                <div key={i} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${a.status === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                                            {a.status === 'Present' ? <CheckCircle size={20} /> : <XCircle size={20} />}
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-white">Slot {a.hour_slot}</p>
-                                            <p className="text-xs text-slate-500 font-bold">{a.date}</p>
-                                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl">
+                            <h3 className="text-2xl font-black uppercase italic mb-8 flex items-center gap-4">
+                                <QrCode className="text-indigo-500" /> QR SCANNER
+                            </h3>
+                            <form onSubmit={handleQrSubmit} className="space-y-6">
+                                <div className="p-8 border-2 border-dashed border-slate-700 rounded-3xl flex flex-col items-center gap-6 bg-slate-950">
+                                    <div className="h-48 w-48 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 relative overflow-hidden">
+                                        <div className="absolute top-0 w-full h-1 bg-indigo-500 animate-scan shadow-[0_0_15px_#4f46e5]"></div>
+                                        <QrCode size={80} className="text-slate-700" />
                                     </div>
-                                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${a.status === 'Present' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                                        {a.status}
-                                    </span>
+                                    <p className="text-sm text-slate-500 text-center font-bold px-4 uppercase">Simulate scanning by entering the QR code string below</p>
                                 </div>
-                            )) : <p className="text-slate-500 font-bold text-center py-20 uppercase tracking-widest">No records found</p>}
+                                <input
+                                    type="text"
+                                    value={qrValue}
+                                    onChange={(e) => setQrValue(e.target.value)}
+                                    placeholder="ATTENDANCE|1|1|1"
+                                    className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-white font-bold focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600"
+                                />
+                                <button type="submit" className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-500 transition-all uppercase tracking-widest shadow-lg active:scale-95">
+                                    Mark Attendance
+                                </button>
+                            </form>
+                        </div>
+
+                        <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl">
+                            <h3 className="text-2xl font-black uppercase italic mb-8">Attendance History</h3>
+                            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                {attendance.length > 0 ? attendance
+                                    .filter(a => {
+                                        // Filter by semester
+                                        if (attendanceFilters.semester !== 'all' && a.semester !== parseInt(attendanceFilters.semester)) return false;
+
+                                        // Filter by subject
+                                        if (attendanceFilters.subject !== 'all' && a.subject_id !== parseInt(attendanceFilters.subject)) return false;
+
+                                        // Filter by specific date
+                                        if (attendanceFilters.date && a.date !== attendanceFilters.date) return false;
+
+                                        // Filter by date range
+                                        if (attendanceFilters.startDate && a.date < attendanceFilters.startDate) return false;
+                                        if (attendanceFilters.endDate && a.date > attendanceFilters.endDate) return false;
+
+                                        return true;
+                                    })
+                                    .map((a, i) => (
+                                        <div key={i} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${a.status === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                                    {a.status === 'Present' ? <CheckCircle size={20} /> : <XCircle size={20} />}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-white">Subject {a.subject_id} - Slot {a.hour_slot}</p>
+                                                    <p className="text-xs text-slate-500 font-bold">{a.date}</p>
+                                                </div>
+                                            </div>
+                                            <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${a.status === 'Present' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                {a.status}
+                                            </span>
+                                        </div>
+                                    )) : <p className="text-slate-500 font-bold text-center py-20 uppercase tracking-widest">No records found</p>}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -408,6 +652,22 @@ const StudentDashboard = () => {
 
             {activeTab === 'academics' && (
                 <div className="space-y-8">
+                    <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-2xl font-black uppercase italic">Examination Results</h3>
+                            <select
+                                value={selectedSemester}
+                                onChange={(e) => setSelectedSemester(e.target.value)}
+                                className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white font-bold text-sm"
+                            >
+                                <option value="all">All Semesters</option>
+                                {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                                    <option key={sem} value={sem}>Semester {sem}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
                     <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl overflow-hidden">
                         <h3 className="text-2xl font-black uppercase italic mb-8 flex items-center gap-4">
                             <BookOpen className="text-indigo-500" /> Academic Results
@@ -419,6 +679,7 @@ const StudentDashboard = () => {
                                         <tr className="border-b border-slate-800">
                                             <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Semester</th>
                                             <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Subject</th>
+                                            <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Exam Type</th>
                                             <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Internal</th>
                                             <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">External</th>
                                             <th className="pb-4 text-xs font-black text-slate-500 uppercase tracking-widest">Total</th>
@@ -426,21 +687,28 @@ const StudentDashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-800/50">
-                                        {marks.map((m, i) => (
-                                            <tr key={i} className="hover:bg-slate-800/20 transition-colors">
-                                                <td className="py-6 font-black text-white">{m.semester}</td>
-                                                <td className="py-6 font-bold text-white uppercase">{m.subject_code}</td>
-                                                <td className="py-6 font-bold text-white">{m.internal_marks}</td>
-                                                <td className="py-6 font-bold text-white">{m.external_marks}</td>
-                                                <td className="py-6 font-black text-indigo-400">{m.internal_marks + m.external_marks}</td>
-                                                <td className="py-6">
-                                                    <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase px-2 py-1 rounded-md">Pass</span>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {marks
+                                            .filter(m => selectedSemester === 'all' || m.semester === parseInt(selectedSemester))
+                                            .map((m, i) => (
+                                                <tr key={i} className="hover:bg-slate-800/20 transition-colors">
+                                                    <td className="py-6 font-black text-white">{m.semester}</td>
+                                                    <td className="py-6 font-bold text-white uppercase">{m.subject_code}</td>
+                                                    <td className="py-6 font-bold text-slate-400 text-sm">{m.exam_type}</td>
+                                                    <td className="py-6 font-bold text-white">{m.internal_marks}</td>
+                                                    <td className="py-6 font-bold text-white">{m.external_marks}</td>
+                                                    <td className="py-6 font-black text-indigo-400">{m.internal_marks + m.external_marks}</td>
+                                                    <td className="py-6">
+                                                        <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${(m.internal_marks + m.external_marks) >= 40 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                                            {(m.internal_marks + m.external_marks) >= 40 ? 'Pass' : 'Fail'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
                                     </tbody>
                                 </table>
-                                {marks.length === 0 && <p className="p-20 text-center text-slate-500 font-black uppercase">No results found</p>}
+                                {marks.filter(m => selectedSemester === 'all' || m.semester === parseInt(selectedSemester)).length === 0 && (
+                                    <p className="p-20 text-center text-slate-500 font-black uppercase">No results found for selected semester</p>
+                                )}
                             </div>
                         ) : (
                             <div className="p-40 text-center">
@@ -510,52 +778,125 @@ const StudentDashboard = () => {
             )}
 
             {activeTab === 'services' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Faculty Feedback */}
-                    <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl">
-                        <h3 className="text-2xl font-black uppercase italic mb-8 flex items-center gap-4">
-                            <MessageSquare className="text-indigo-500" /> Faculty Feedback
-                        </h3>
-                        <form onSubmit={handleFeedbackSubmit} className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-8">
+                    {/* Service Selector */}
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => setActiveService('grievance')}
+                            className={`flex-1 p-6 rounded-[2rem] border-2 transition-all ${activeService === 'grievance'
+                                ? 'bg-indigo-600 border-indigo-600 text-white'
+                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-indigo-500'}`}
+                        >
+                            <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+                            <p className="font-black uppercase text-sm">Grievance</p>
+                        </button>
+                        <button
+                            onClick={() => setActiveService('feedback')}
+                            className={`flex-1 p-6 rounded-[2rem] border-2 transition-all ${activeService === 'feedback'
+                                ? 'bg-indigo-600 border-indigo-600 text-white'
+                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-indigo-500'}`}
+                        >
+                            <MessageSquare className="h-8 w-8 mx-auto mb-2" />
+                            <p className="font-black uppercase text-sm">Feedback</p>
+                        </button>
+                    </div>
+
+                    {/* Grievance Form */}
+                    {activeService === 'grievance' && (
+                        <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl max-w-2xl mx-auto">
+                            <h3 className="text-2xl font-black uppercase italic mb-8 flex items-center gap-4">
+                                <AlertTriangle className="text-indigo-500" /> Submit Grievance
+                            </h3>
+                            <form onSubmit={handleGrievanceSubmit} className="space-y-6">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Teacher ID</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Category</label>
+                                    <select
+                                        value={grievance.category}
+                                        onChange={(e) => setGrievance({ ...grievance, category: e.target.value })}
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold"
+                                    >
+                                        <option value="Academic">Academic</option>
+                                        <option value="Administrative">Administrative</option>
+                                        <option value="Infrastructure">Infrastructure</option>
+                                        <option value="Harassment">Harassment</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Title</label>
                                     <input
-                                        type="number"
+                                        type="text"
                                         required
-                                        value={feedback.teacher_id}
-                                        onChange={(e) => setFeedback({ ...feedback, teacher_id: parseInt(e.target.value) })}
+                                        value={grievance.title}
+                                        onChange={(e) => setGrievance({ ...grievance, title: e.target.value })}
+                                        placeholder="Brief title of your concern"
                                         className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Rating (1-5)</label>
-                                    <select
-                                        value={feedback.rating}
-                                        onChange={(e) => setFeedback({ ...feedback, rating: parseInt(e.target.value) })}
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Description</label>
+                                    <textarea
+                                        required
+                                        rows="6"
+                                        value={grievance.description}
+                                        onChange={(e) => setGrievance({ ...grievance, description: e.target.value })}
                                         className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold"
-                                    >
-                                        {[5, 4, 3, 2, 1].map(r => <option key={r} value={r}>{r} Stars</option>)}
-                                    </select>
+                                        placeholder="Describe your grievance in detail..."
+                                    ></textarea>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Comments</label>
-                                <textarea
-                                    required
-                                    rows="4"
-                                    value={feedback.comment}
-                                    onChange={(e) => setFeedback({ ...feedback, comment: e.target.value })}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold"
-                                    placeholder="Share your experience..."
-                                ></textarea>
-                            </div>
-                            <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-500 transition-all uppercase tracking-widest">
-                                Submit Feedback
-                            </button>
-                        </form>
-                    </div>
+                                <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-500 transition-all uppercase tracking-widest">
+                                    Submit Grievance
+                                </button>
+                            </form>
+                        </div>
+                    )}
 
+                    {/* Faculty Feedback Form */}
+                    {activeService === 'feedback' && (
+                        <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl max-w-2xl mx-auto">
+                            <h3 className="text-2xl font-black uppercase italic mb-8 flex items-center gap-4">
+                                <MessageSquare className="text-indigo-500" /> Faculty Feedback
+                            </h3>
+                            <form onSubmit={handleFeedbackSubmit} className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Teacher ID</label>
+                                        <input
+                                            type="number"
+                                            required
+                                            value={feedback.teacher_id}
+                                            onChange={(e) => setFeedback({ ...feedback, teacher_id: parseInt(e.target.value) })}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Rating (1-5)</label>
+                                        <select
+                                            value={feedback.rating}
+                                            onChange={(e) => setFeedback({ ...feedback, rating: parseInt(e.target.value) })}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold"
+                                        >
+                                            {[5, 4, 3, 2, 1].map(r => <option key={r} value={r}>{r} Stars</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Comments</label>
+                                    <textarea
+                                        required
+                                        rows="6"
+                                        value={feedback.comment}
+                                        onChange={(e) => setFeedback({ ...feedback, comment: e.target.value })}
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold"
+                                        placeholder="Share your experience..."
+                                    ></textarea>
+                                </div>
+                                <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-500 transition-all uppercase tracking-widest">
+                                    Submit Feedback
+                                </button>
+                            </form>
+                        </div>
+                    )}
                 </div>
             )}
             {activeTab === 'profile' && (
