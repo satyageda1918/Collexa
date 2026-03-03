@@ -4,19 +4,10 @@ import api from '../services/api';
 import {
     Users,
     Settings,
-    ShieldCheck,
     UserPlus,
     Search,
-    MoreVertical,
-    Check,
     X,
-    Loader2,
-    ClipboardList,
-    GraduationCap,
-    Wallet,
-    AlertCircle,
     CheckCircle2,
-    Clock,
     Trash2
 } from 'lucide-react';
 
@@ -24,8 +15,6 @@ const AdminDashboard = () => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('users');
     const [users, setUsers] = useState([]);
-    const [admissions, setAdmissions] = useState([]);
-    const [fees, setFees] = useState([]);
     const [stats, setStats] = useState({ total_students: 0, total_faculty: 0, system_status: 'Checking...', active_sessions: 0 });
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -33,24 +22,21 @@ const AdminDashboard = () => {
     const [editingUser, setEditingUser] = useState(null);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [roleFilter, setRoleFilter] = useState('ALL'); // New filter state
 
     const [formData, setFormData] = useState({
         name: '', email: '', password: '', role: 'STUDENT',
-        department: '', year: '', section: '', phone_number: '', address: ''
+        roll_number: '', department: '', year: '', section: '', phone_number: '', address: ''
     });
 
     const refreshData = async () => {
         try {
-            const [usersRes, statsRes, admissionsRes, feesRes] = await Promise.all([
+            const [usersRes, statsRes] = await Promise.all([
                 api.get('/admin/users'),
-                api.get('/admin/dashboard-stats'),
-                api.get('/staff/admissions'),
-                api.get('/staff/fee-status')
+                api.get('/admin/dashboard-stats')
             ]);
             setUsers(usersRes.data);
             setStats(statsRes.data);
-            setAdmissions(admissionsRes.data);
-            setFees(feesRes.data);
         } catch (err) {
             console.error(err);
         }
@@ -62,7 +48,7 @@ const AdminDashboard = () => {
         const wsUrl = `${wsProtocol}//localhost:8000/ws/${user?.id || 'guest'}`;
         const socket = new WebSocket(wsUrl);
         socket.onmessage = (event) => {
-            if (['USERS_UPDATED', 'FEES_UPDATED', 'ADMISSIONS_UPDATED'].includes(event.data)) {
+            if (['USERS_UPDATED'].includes(event.data)) {
                 refreshData();
             }
         };
@@ -83,7 +69,7 @@ const AdminDashboard = () => {
             }
             setIsModalOpen(false);
             setEditingUser(null);
-            setFormData({ name: '', email: '', password: '', role: 'STUDENT', department: '', year: '', section: '', phone_number: '', address: '' });
+            setFormData({ name: '', email: '', password: '', role: 'STUDENT', roll_number: '', department: '', year: '', section: '', phone_number: '', address: '' });
             refreshData();
         } catch (err) {
             alert(err.response?.data?.detail || "Error saving user");
@@ -115,10 +101,12 @@ const AdminDashboard = () => {
         } catch (err) { alert(err.response?.data?.detail); }
     };
 
-    const filteredUsers = users.filter(u =>
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredUsers = users.filter(u => {
+        const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            u.email.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
+        return matchesSearch && matchesRole;
+    });
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -140,9 +128,7 @@ const AdminDashboard = () => {
             {/* Navigation Tabs */}
             <div className="flex bg-slate-100 p-1.5 rounded-2xl w-fit mx-auto shadow-inner border border-slate-200/50">
                 {[
-                    { id: 'users', label: 'Users', icon: Users },
-                    { id: 'admissions', label: 'Admissions', icon: GraduationCap },
-                    { id: 'fees', label: 'Finances', icon: Wallet }
+                    { id: 'users', label: 'User Management', icon: Users }
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -162,26 +148,55 @@ const AdminDashboard = () => {
             <div className="bg-brand-card rounded-[32px] border border-slate-200 shadow-xl overflow-hidden min-h-[600px] flex flex-col">
                 {activeTab === 'users' && (
                     <>
-                        <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center bg-slate-50/30 gap-4">
-                            <div>
-                                <h3 className="text-2xl font-black text-brand-text">Directory</h3>
-                                <p className="text-xs text-slate-400 font-medium tracking-tight">Manage all student, teacher, and departmental accounts</p>
-                            </div>
-                            <div className="flex gap-4 w-full md:w-auto">
-                                <div className="relative flex-1 md:w-64">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                    <input
-                                        type="text" placeholder="Search accounts..."
-                                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-brand-primary/5 transition-all"
-                                        value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
+                        <div className="p-8 border-b border-slate-100 flex flex-col gap-6 bg-slate-50/30">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div>
+                                    <h3 className="text-2xl font-black text-brand-text">Directory</h3>
+                                    <p className="text-xs text-slate-400 font-medium tracking-tight">Manage all student, teacher, and departmental accounts</p>
                                 </div>
-                                <button
-                                    onClick={() => { setEditingUser(null); setFormData({ name: '', email: '', password: '', role: 'STUDENT', department: '', year: '', section: '', phone_number: '', address: '' }); setIsModalOpen(true); }}
-                                    className="bg-brand-primary hover:bg-brand-hover text-white px-6 py-3 rounded-xl text-sm font-black flex items-center transition-all shadow-lg shadow-brand-primary/20 hover:scale-105 active:scale-95"
-                                >
-                                    <UserPlus className="h-4 w-4 mr-2" /> CREATE
-                                </button>
+                                <div className="flex gap-4 w-full md:w-auto">
+                                    <div className="relative flex-1 md:w-64">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                        <input
+                                            type="text" placeholder="Search accounts..."
+                                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-brand-primary/5 transition-all"
+                                            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={() => { setEditingUser(null); setFormData({ name: '', email: '', password: '', role: 'STUDENT', department: '', year: '', section: '', phone_number: '', address: '' }); setIsModalOpen(true); }}
+                                        className="bg-brand-primary hover:bg-brand-hover text-white px-6 py-3 rounded-xl text-sm font-black flex items-center transition-all shadow-lg shadow-brand-primary/20 hover:scale-105 active:scale-95"
+                                    >
+                                        <UserPlus className="h-4 w-4 mr-2" /> CREATE
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Role Filter Badges */}
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { value: 'ALL', label: 'All Users', color: 'bg-slate-100 text-slate-700 hover:bg-slate-200' },
+                                    { value: 'STUDENT', label: 'Students', color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' },
+                                    { value: 'TEACHER', label: 'Teachers', color: 'bg-amber-100 text-amber-700 hover:bg-amber-200' },
+                                    { value: 'ADMIN', label: 'Admins', color: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' },
+                                    { value: 'ADMISSION', label: 'Admission', color: 'bg-purple-100 text-purple-700 hover:bg-purple-200' },
+                                    { value: 'EXAM', label: 'Exam Cell', color: 'bg-blue-100 text-blue-700 hover:bg-blue-200' },
+                                    { value: 'ACCOUNT', label: 'Accounts', color: 'bg-teal-100 text-teal-700 hover:bg-teal-200' }
+                                ].map(filter => (
+                                    <button
+                                        key={filter.value}
+                                        onClick={() => setRoleFilter(filter.value)}
+                                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${roleFilter === filter.value
+                                            ? 'ring-2 ring-brand-primary ring-offset-2 scale-105 ' + filter.color
+                                            : filter.color
+                                            }`}
+                                    >
+                                        {filter.label}
+                                        <span className="ml-2 opacity-60">
+                                            ({users.filter(u => filter.value === 'ALL' || u.role === filter.value).length})
+                                        </span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
                         <div className="divide-y divide-slate-100 bg-white">
@@ -230,99 +245,6 @@ const AdminDashboard = () => {
                         </div>
                     </>
                 )}
-
-
-                {activeTab === 'admissions' && (
-                    <div className="p-8">
-                        <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-2xl font-black text-brand-text">New Admissions</h3>
-                            <p className="text-xs text-slate-400 font-medium">Review and auto-generate student accounts</p>
-                        </div>
-                        <div className="space-y-4">
-                            {admissions.map(a => (
-                                <div key={a.id} className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col md:flex-row justify-between items-center gap-6">
-                                    <div className="flex items-center flex-1">
-                                        <div className="h-12 w-12 bg-indigo-50 rounded-2xl flex items-center justify-center mr-4 text-indigo-500 font-black">
-                                            {a.first_name?.[0] || 'A'}
-                                        </div>
-                                        <div>
-                                            <p className="text-lg font-black text-brand-text">{a.first_name} {a.last_name}</p>
-                                            <div className="flex gap-3 text-xs font-medium text-slate-400 uppercase tracking-tight">
-                                                <span>{a.desired_course}</span>
-                                                <span className="text-slate-200 font-light">|</span>
-                                                <span>GPA: {a.previous_gpa}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-10 text-xs font-bold text-slate-500">
-                                        <div className="flex flex-col items-center">
-                                            <p className="text-[10px] text-slate-300 uppercase mb-1">Email</p>
-                                            <p>{a.email}</p>
-                                        </div>
-                                        <div className="flex flex-col items-center">
-                                            <p className="text-[10px] text-slate-300 uppercase mb-1">Status</p>
-                                            <span className={`px-2 py-0.5 rounded capitalize ${a.status === 'Approved' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{a.status}</span>
-                                        </div>
-                                    </div>
-                                    {a.status === 'Pending' ? (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handleAdmissionAction(a.id, 'approve')} className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-primary/10 hover:scale-105 active:scale-95 transition-all">APPROVE & SEED</button>
-                                            <button onClick={() => handleAdmissionAction(a.id, 'reject')} className="px-6 py-3 border border-slate-200 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">REJECT</button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center text-emerald-600 font-bold text-xs uppercase italic">
-                                            <CheckCircle2 className="h-4 w-4 mr-2" /> Processed
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'fees' && (
-                    <div className="p-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                            <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-[2rem]">
-                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Revenue</p>
-                                <p className="text-2xl font-black text-emerald-800 mt-1">₹{fees.reduce((acc, f) => acc + f.paid_amount, 0).toLocaleString()}</p>
-                            </div>
-                            <div className="bg-amber-50 border border-amber-100 p-6 rounded-[2rem]">
-                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Outstanding</p>
-                                <p className="text-2xl font-black text-amber-800 mt-1">₹{fees.reduce((acc, f) => acc + f.due_amount, 0).toLocaleString()}</p>
-                            </div>
-                        </div>
-                        <h3 className="text-xl font-black text-brand-text mb-6">Fee Ledgers</h3>
-                        <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-                                    <tr>
-                                        <th className="px-8 py-5">Full Name</th>
-                                        <th className="px-8 py-5">UID</th>
-                                        <th className="px-8 py-5">Total Fee</th>
-                                        <th className="px-8 py-5">Paid</th>
-                                        <th className="px-8 py-5">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {fees.map(f => (
-                                        <tr key={f.id} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-8 py-5 font-bold text-slate-700">{f.student_name}</td>
-                                            <td className="px-8 py-5 text-slate-400 font-mono">#{f.student_id}</td>
-                                            <td className="px-8 py-5 font-bold">₹{f.total_amount.toLocaleString()}</td>
-                                            <td className="px-8 py-5 text-emerald-600 font-bold">₹{f.paid_amount.toLocaleString()}</td>
-                                            <td className="px-8 py-5">
-                                                <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${f.due_amount === 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {f.due_amount === 0 ? 'Clear' : `₹${f.due_amount} DUE`}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* User Modal */}
@@ -369,6 +291,28 @@ const AdminDashboard = () => {
                                             <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Dept</label>
                                             <input type="text" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-brand-primary outline-none" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} />
                                         </div>
+                                    )}
+                                    {formData.role === 'STUDENT' && (
+                                        <>
+                                            <div className="col-span-2 md:col-span-1">
+                                                <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Roll Number</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="e.g. CS2024001"
+                                                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-brand-primary outline-none font-mono"
+                                                    value={formData.roll_number}
+                                                    onChange={(e) => setFormData({ ...formData, roll_number: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="col-span-2 md:col-span-1">
+                                                <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Year</label>
+                                                <input type="number" min="1" max="5" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none" value={formData.year} onChange={(e) => setFormData({ ...formData, year: e.target.value })} />
+                                            </div>
+                                            <div className="col-span-2 md:col-span-1">
+                                                <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Section</label>
+                                                <input type="text" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none" value={formData.section} onChange={(e) => setFormData({ ...formData, section: e.target.value })} />
+                                            </div>
+                                        </>
                                     )}
                                     <div className="col-span-2 md:col-span-1">
                                         <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Phone</label>

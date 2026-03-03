@@ -13,6 +13,7 @@ class UserCreate(UserBase):
     password: str
 
 class UserCreateExtended(UserCreate):
+    roll_number: Optional[str] = None
     department: Optional[str] = None
     year: Optional[int] = None
     section: Optional[str] = None
@@ -24,6 +25,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     role: Optional[UserRole] = None
     password: Optional[str] = None
+    roll_number: Optional[str] = None
     department: Optional[str] = None
     year: Optional[int] = None
     section: Optional[str] = None
@@ -48,6 +50,7 @@ class TokenData(BaseModel):
     id: Optional[int] = None
 
 class StudentBase(BaseModel):
+    roll_number: Optional[str] = None
     department: str
     year: int
     section: str
@@ -63,6 +66,7 @@ class Student(StudentBase):
 class StudentUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
+    roll_number: Optional[str] = None
     phone_number: Optional[str] = None
     address: Optional[str] = None
 

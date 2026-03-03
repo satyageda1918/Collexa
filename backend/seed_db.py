@@ -41,6 +41,17 @@ def ensure_staff_columns():
         except Exception as e:
             print(f"account_staff.ledger_access: {str(e)[:100]}")
 
+        try:
+            # Check and add roll_number to students
+            conn.execute(text("""
+                ALTER TABLE students 
+                ADD COLUMN IF NOT EXISTS roll_number VARCHAR(50) UNIQUE
+            """))
+            conn.commit()
+            print("✓ students.roll_number verified")
+        except Exception as e:
+            print(f"students.roll_number: {str(e)[:100]}")
+
 def seed_db():
     # Create tables if they don't exist
     models.Base.metadata.create_all(bind=engine)
@@ -118,7 +129,14 @@ def seed_db():
                 db.refresh(db_user)
                 
                 if u["role"] == models.UserRole.STUDENT:
-                    student = models.Student(user_id=db_user.id, department="Computer Science", year=3, section="A", gpa=3.8)
+                    student = models.Student(
+                        user_id=db_user.id, 
+                        roll_number="CS2021001",
+                        department="Computer Science", 
+                        year=3, 
+                        section="A", 
+                        gpa=3.8
+                    )
                     db.add(student)
                     fee = models.Fee(student_id=db_user.id, total_amount=50000.0, paid_amount=15000.0, due_amount=35000.0)
                     db.add(fee)

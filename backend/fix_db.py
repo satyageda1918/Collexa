@@ -68,6 +68,12 @@ def migrate():
         add_column("account_staff", "ledger_access", "BOOLEAN DEFAULT TRUE")
         print("✓ Staff table columns verified")
 
+        # Add roll_number to students table
+        print("Ensuring students table has roll_number column...")
+        add_column("students", "roll_number", "VARCHAR(50) UNIQUE")
+        add_index("students", "roll_number")
+        print("✓ Students table roll_number column verified")
+
         # Precision
         modify_column("fees", "total_amount", "DECIMAL(12, 2)")
         modify_column("fees", "paid_amount", "DECIMAL(12, 2)")

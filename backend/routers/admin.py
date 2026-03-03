@@ -52,8 +52,17 @@ async def create_user(
         
         # Create Profile based on role
         if user_in.role == models.UserRole.STUDENT:
+            # Check if roll_number already exists
+            if user_in.roll_number:
+                existing_roll = db.query(models.Student).filter(
+                    models.Student.roll_number == user_in.roll_number
+                ).first()
+                if existing_roll:
+                    raise HTTPException(status_code=400, detail="Roll number already exists")
+            
             student = models.Student(
                 user_id=db_user.id,
+                roll_number=user_in.roll_number,
                 department=user_in.department or "General",
                 year=user_in.year or 1,
                 section=user_in.section or "A",

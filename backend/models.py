@@ -44,6 +44,7 @@ class User(Base):
 class Student(Base):
     __tablename__ = "students"
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    roll_number = Column(String(50), unique=True, index=True)
     department = Column(String(100))
     year = Column(Integer)
     section = Column(String(10))
