@@ -190,7 +190,7 @@ const TeacherDashboard = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-4xl font-black tracking-tight text-white uppercase italic">Faculty Portal</h1>
+                    <h1 className="text-4xl font-black tracking-tight text-black uppercase italic">Faculty Portal</h1>
                     <p className="text-slate-400 font-medium">Welcome back, Prof. {profile?.name}</p>
                 </div>
                 <div className="flex bg-slate-900/50 p-1 rounded-2xl border border-slate-800">

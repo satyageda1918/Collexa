@@ -157,7 +157,7 @@ const ExamCellPortal = () => {
                 <div>
                     <h1 className="text-3xl font-black text-brand-text flex items-center">
                         <ShieldCheck className="mr-3 h-8 w-8 text-brand-primary" />
-                        Exam & Admin Cell
+                        Exam Cell
                     </h1>
                     <p className="text-slate-400 font-medium mt-1">Academic controls, results publishing, and QP management</p>
                 </div>
