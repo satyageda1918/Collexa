@@ -137,6 +137,7 @@ class Attendance(AttendanceBase):
 class AttendanceMarkRequest(BaseModel):
     qr_code_data: str
 
+
 class AttendanceSessionStart(BaseModel):
     subject_id: int
     hour_slot: int
@@ -148,6 +149,7 @@ class AttendanceRegistration(BaseModel):
     student_id: int
     name: str
     roll_number: str
+
 
 class MarkBase(BaseModel):
     student_id: int
@@ -326,3 +328,4 @@ class TimetableEntry(TimetableEntryBase):
     teacher: Optional[Teacher] = None
     class Config:
         from_attributes = True
+

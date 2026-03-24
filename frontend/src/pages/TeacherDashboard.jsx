@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+
 import api from '../services/api';
 import {
     Users,
@@ -26,6 +27,7 @@ const TeacherDashboard = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+
     const [activeTab, setActiveTab] = useState('overview');
     const [students, setStudents] = useState([]);
     const [stats, setStats] = useState(null);
@@ -45,6 +47,7 @@ const TeacherDashboard = () => {
         section: 'A'
     });
     const [scannedStudents, setScannedStudents] = useState([]);
+
 
     // Profile Edit States
     const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -135,6 +138,7 @@ const TeacherDashboard = () => {
                 }
             }
         };
+
         socket.onclose = () => console.log('Teacher WS Disconnected');
 
         return () => socket.close();
@@ -189,8 +193,8 @@ const TeacherDashboard = () => {
             // Even if API fails, clear local state
             setShowQR(false);
             setScannedStudents([]);
-        }
     };
+
 
     const fetchStudentsForMarking = async () => {
         try {
@@ -253,6 +257,7 @@ const TeacherDashboard = () => {
                         <button
                             key={tab}
                             onClick={() => handleTabChange(tab)}
+
                             className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'
                                 }`}
                         >
@@ -483,12 +488,14 @@ const TeacherDashboard = () => {
                                         <QRCodeSVG value={qrCode} size={240} level="H" />
                                     </div>
                                     <div className="flex justify-center gap-4">
-                                        <button 
+                                        <button
                                             onClick={handleStopSession}
                                             className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase transition-all shadow-lg"
                                         >
                                             Stop Session
                                         </button>
+                                        <span className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold uppercase border border-slate-700">SUB: {selectedSubject}</span>
+                                        <span className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold uppercase border border-slate-700">SLOT: {selectedSlot}</span>
                                     </div>
                                 </div>
 
@@ -510,7 +517,7 @@ const TeacherDashboard = () => {
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                         <CheckCircle className="text-emerald-500" size={16} />
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleRemoveAttendance(s.id)}
                                                             className="p-2 opacity-0 group-hover:opacity-100 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"
                                                         >

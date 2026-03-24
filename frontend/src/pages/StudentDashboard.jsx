@@ -27,6 +27,7 @@ import {
     ShieldCheck
 } from 'lucide-react';
 import TimetableView from '../components/timetable/TimetableItem';
+
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -177,6 +178,7 @@ const StudentDashboard = () => {
         // Get tab from URL hash or default to overview
         const hash = location.hash.replace('#', '');
         if (hash && ['overview', 'attendance', 'timetable', 'academics', 'fees', 'services', 'profile'].includes(hash)) {
+
             setActiveTab(hash);
         }
     }, [location.hash]);
@@ -347,6 +349,7 @@ const StudentDashboard = () => {
                     </div>
                     <div className="flex bg-slate-900/50 p-1 rounded-2xl border border-slate-800">
                         {['overview', 'attendance', 'timetable', 'academics', 'fees', 'services', 'profile'].map((tab) => (
+
                             <button
                                 key={tab}
                                 onClick={() => handleTabChange(tab)}
@@ -1137,6 +1140,7 @@ const StudentDashboard = () => {
                 {activeTab === 'timetable' && (
                     <TimetableView role="STUDENT" />
                 )}
+
             </div>
         </div>
     );

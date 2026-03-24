@@ -213,6 +213,8 @@ class QuestionPaper(Base):
 # Update Student relationship
 Student.notifications = relationship("Notification", back_populates="student", cascade="all, delete-orphan")
 
+
+
 class Subject(Base):
     __tablename__ = "subjects"
     id = Column(Integer, primary_key=True, index=True)

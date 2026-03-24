@@ -94,6 +94,7 @@ async def generate_attendance_qr(
     
     # In a real app, this would be a signed token
     qr_data = f"ATTENDANCE|{session.subject_id}|{session.hour_slot}|{current_user.id}"
+
     img = qrcode.make(qr_data)
     buf = io.BytesIO()
     img.save(buf)
@@ -152,6 +153,7 @@ async def stop_attendance_session(
     from websocket_manager import manager
     manager.end_session(current_user.id)
     return {"message": "Attendance session stopped"}
+
 @router.get("/students-for-marking", response_model=List[schemas.UserDetailed])
 async def get_students_for_marking(
     year: int,

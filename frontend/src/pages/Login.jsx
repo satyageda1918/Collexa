@@ -5,6 +5,7 @@ import api from '../services/api';
 import { Lock, Mail, Loader2 } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
 
+
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -38,6 +39,7 @@ const Login = () => {
             login(response.data.access_token);
 
             const decoded = jwtDecode(response.data.access_token);
+
             const role = decoded.role;
 
             if (role === 'ADMIN') navigate('/admin');
@@ -51,6 +53,7 @@ const Login = () => {
         } catch (err) {
             const errorMsg = err.response?.data?.detail || 'Could not connect to server. Check your internet or API URL.';
             setError(errorMsg === 'Incorrect email or password' ? 'Invalid email or password' : errorMsg);
+
         } finally {
             setLoading(false);
         }

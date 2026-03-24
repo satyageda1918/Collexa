@@ -218,3 +218,4 @@ async def mark_attendance(
     })
     
     return {"message": "Attendance marked successfully", "status": "success"}
+

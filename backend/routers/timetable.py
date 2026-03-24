@@ -7,14 +7,14 @@ from websocket_manager import manager
 router = APIRouter()
 
 @router.get("/subjects", response_model=List[schemas.Subject])
-def get_subjects(
+async def get_subjects(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(dependencies.get_current_user)
 ):
     return db.query(models.Subject).all()
 
 @router.post("/subjects", response_model=schemas.Subject)
-def create_subject(
+async def create_subject(
     subject: schemas.SubjectCreate,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(dependencies.RoleChecker(["ADMIN"]))
@@ -26,7 +26,7 @@ def create_subject(
     return db_subject
 
 @router.get("/entries", response_model=List[schemas.TimetableEntry])
-def get_timetable_entries(
+async def get_timetable_entries(
     department: Optional[str] = None,
     year: Optional[int] = None,
     section: Optional[str] = None,
@@ -44,7 +44,7 @@ def get_timetable_entries(
     return query.all()
 
 @router.post("/entries", response_model=schemas.TimetableEntry)
-def create_timetable_entry(
+async def create_timetable_entry(
     entry: schemas.TimetableEntryCreate,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(dependencies.RoleChecker(["ADMIN"]))
@@ -84,12 +84,12 @@ def create_timetable_entry(
     db.refresh(db_entry)
     
     # Notify updates via WebSocket
-    manager.broadcast_json({"type": "TIMETABLE_UPDATED", "message": "The timetable has been updated."})
+    await manager.broadcast("TIMETABLE_UPDATED")
     
     return db_entry
 
 @router.delete("/entries/{entry_id}")
-def delete_timetable_entry(
+async def delete_timetable_entry(
     entry_id: int,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(dependencies.RoleChecker(["ADMIN"]))
@@ -99,11 +99,11 @@ def delete_timetable_entry(
         raise HTTPException(status_code=404, detail="Entry not found")
     db.delete(db_entry)
     db.commit()
-    manager.broadcast_json({"type": "TIMETABLE_UPDATED", "message": "The timetable has been updated."})
+    await manager.broadcast("TIMETABLE_UPDATED")
     return {"message": "Entry deleted"}
 
 @router.get("/my-timetable", response_model=List[schemas.TimetableEntry])
-def get_my_timetable(
+async def get_my_timetable(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(dependencies.get_current_user)
 ):

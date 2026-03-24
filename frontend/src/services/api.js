@@ -1,4 +1,5 @@
 import axios from 'axios';
+
 import { getBackendUrl } from '../utils/config';
 
 const api = axios.create({
@@ -16,3 +17,4 @@ api.interceptors.request.use((config) => {
 });
 
 export default api;
+

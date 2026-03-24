@@ -70,3 +70,5 @@ app.include_router(timetable.router, prefix="/timetable", tags=["timetable"])
 @app.get("/")
 def read_root():
     return {"message": "Welcome to College ERP API"}
+
+

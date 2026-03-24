@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import {
@@ -19,6 +20,7 @@ const AdminDashboard = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+
     const [activeTab, setActiveTab] = useState('users');
     const [users, setUsers] = useState([]);
     const [stats, setStats] = useState({ total_students: 0, total_faculty: 0, system_status: 'Checking...', active_sessions: 0 });
@@ -62,8 +64,8 @@ const AdminDashboard = () => {
 
     useEffect(() => {
         refreshData();
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = getWsUrl(user?.id);
+
         const socket = new WebSocket(wsUrl);
         socket.onmessage = (event) => {
             if (['USERS_UPDATED'].includes(event.data)) {
@@ -152,6 +154,7 @@ const AdminDashboard = () => {
                     <button
                         key={tab.id}
                         onClick={() => handleTabChange(tab.id)}
+
                         className={`flex items-center px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${activeTab === tab.id
                             ? 'bg-white text-brand-primary shadow-sm scale-105'
                             : 'text-slate-500 hover:text-slate-700'
@@ -268,6 +271,7 @@ const AdminDashboard = () => {
                 {activeTab === 'timetable' && (
                     <TimetableAdmin />
                 )}
+
             </div>
 
             {/* User Modal */}
