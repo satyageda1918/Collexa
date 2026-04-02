@@ -193,6 +193,7 @@ const TeacherDashboard = () => {
             // Even if API fails, clear local state
             setShowQR(false);
             setScannedStudents([]);
+        }
     };
 
 
